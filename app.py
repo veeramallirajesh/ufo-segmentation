@@ -12,19 +12,10 @@ from torch.utils.data import DataLoader
 from dataloader.train_val_test_split import TrainValTestSplit, ExistingTrainValTestSplit
 from PIL import Image
 import torch
-
-# gpu = 0
-# if len(sys.argv) > 1:
-#     gpu = sys.argv[1]
-#
-# # we have to do this before importing torch
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
-# print(f"using gpu {os.environ['CUDA_VISIBLE_DEVICES']}")
+from typing import Mapping
 
 import numpy as np
 from pathlib import Path
-from segmentation_models_pytorch import PSPNet
 from segmentation_models_pytorch.encoders import get_preprocessing_fn
 from torch.nn import MSELoss, BCELoss, CrossEntropyLoss
 from torchvision import transforms
@@ -34,15 +25,39 @@ from runtime.training import ModelTrainer
 from runtime.utils import parse_args, dice_loss, iou_loss, multiclass_dice_loss
 from dataloader.preprocessing import ApplyPreprocessing
 from runtime.evaluation import evaluate_segmentation
+from models import pspnet, unet
+from models.pspnet import PspNetModel
+from models.unet import UnetModel
+
+models = {
+    "pspnet": PspNetModel,
+    "unet": UnetModel
+}
+
+# Get model based on the config
+def get_model(cfg: Mapping = None):
+    model_name = cfg['model']['name'].lower()
+    model = models.get(model_name, "pspnet")(cfg).model
+    # model = eval(model_name).model
+    return model
+
+# Function to set height and width of the input image
+def get_hw(cfg: Mapping = None):
+    if cfg['model']['name'].lower() == "pspnet":
+        return (320, 720) # height and width of the image
+    elif cfg['model']['name'].lower() == "unet":
+        return (768, 768)
+    else:
+        return (320, 720)
 
 
-def make_segmentation_net(cfg, data_dir, generate_org=False):
+def make_segmentation_net(cfg: Mapping = None, data_dir: str = None, generate_org=False):
     # MobilenetV2 encoder and PSPNET decoder for segmentation
-    net = PSPNet(encoder_name="mobilenet_v2", in_channels=1, encoder_weights="imagenet", activation="sigmoid")
+    net = get_model(cfg)
+    # net = PSPNet(encoder_name="mobilenet_v2", in_channels=1, encoder_weights="imagenet", activation="sigmoid")
     # Pre-processing function for inputs
     preprocess_f = get_preprocessing_fn(encoder_name='mobilenet_v2', pretrained='imagenet')
-    width = cfg['data']['width']
-    height = cfg['data']['height']
+    height, width = get_hw(cfg)
     bbox_dir = cfg['data']['bbox_dir']
     if cfg['data']['rescale'] == "bbox":
         dataset = UFSegmentationDataset(data_root=data_dir, bbox_dir=bbox_dir, transform=transforms.Compose(
@@ -54,7 +69,6 @@ def make_segmentation_net(cfg, data_dir, generate_org=False):
             transforms.ToTensor()]))
     # KITTI dataset
     # dataset = KittiDataset(data_root=data_dir, mode="train", transform=transforms.Compose([preprocess_f, transforms.Resize(width, height), transforms.ToTensor()]))
-
     return net, dataset
 
 
@@ -70,7 +84,7 @@ def train_base(cfg, model, dataset, metrics, eval_f, loss_fn=MSELoss(), save_eve
 
     split = TrainValTestSplit(indx_dir, dataset)
 
-    print("training" if training else "evaluating")
+    print(f"training model: {cfg['model']['name']}" if training else "evaluating")
 
     if not split.split_exists() and not train:
         raise RuntimeError("in eval mode, but cannot find data split")
@@ -91,6 +105,7 @@ def train_base(cfg, model, dataset, metrics, eval_f, loss_fn=MSELoss(), save_eve
         trainer = ModelTrainer(use_gpu=False, loss_fn=loss_fn, model_path=model_path)
         trainer.load()
         eval_f(trainer, l_test)
+
 # Loading config file is taken care by hydra
 @hydra.main(config_name="config")
 def train_segmentation_net_ufs(cfg: DictConfig):

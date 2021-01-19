@@ -10,26 +10,24 @@ data:
   kitti: # KITTI VISION Benchmark Dataset
     images: "image_2"
     labels: "semantic"
-  width: 720 # Width of the input image to the model
-  height: 360 # Height of the input image to the model
   eval_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval" # Path for model evaluation on test data
   rescale: "bbox" # Mode bbox or normal
 
 model:
-  pspnet:
-    encoder_name: "mobilenet_v2"
-    in_channels: 1 # Inputs are grauscale images
-    activation: "sigmoid"
-    encoder_weights: "imagenet"
+  name: "pspnet" # Name of the segmentation model
+  encoder_name: "mobilenet_v2" # type of encoder the model is built with.
+  in_channels: 1 # Inputs are grauscale images
+  activation: "identity" # could be "softmax2d" for mutliclass or 'sigmoid' for binary
+  encoder_weights: "imagenet"
 
 train:
-  training: 1 # Mode training or evaluationg
+  training: 0 # Mode training or evaluationg
   batch_size: 4  # batch size for training
   optimizer: "adam"  # optimizer for training
   lr: 0.001  # learning rate for the optimizer
   gpus: 1  # number of gpus to use in training
   check_val_every_n_epoch: 1  # how often should validation be checked for early stopping
-  max_epochs: 100  # maximum number of training epochs
+  max_epochs: 30  # maximum number of training epochs
   precision: 32  # bit precision for use in training, either 32 or 16
   saved_model_path: "/home/rveeramalli/ufo-segmentation/src/saved_models" # Path to store trained models
 

@@ -52,27 +52,6 @@ class ToTensor:
                     self.target_name: torch.from_numpy(target.astype(self.target_type))}
 
 
-class MakePolynoms:
-    def __init__(self, degree_top=7, degree_bottom=7, precision=25):
-        self.degree_top = degree_top
-        self.precision = precision
-        self.degree_bottom = degree_bottom
-
-    def __call__(self, sample):
-        objects, img = sample['objects'], sample['image']
-
-        all_pol_points = []
-        for obj in objects:
-            all_pol_points += obj.points
-
-        chull = get_convex_hull_from_points(all_pol_points)
-        p_top, _ = make_polynom(self.degree_top, chull, img.shape[1], img.shape[0], "top", precision=self.precision)
-        p_b, _ = make_polynom(self.degree_bottom, chull, img.shape[1], img.shape[0], "bottom", precision=self.precision)
-
-        return {'polynoms': np.concatenate((p_top, p_b)),
-                **sample}
-
-
 class Rescale:
     def __init__(self, output_size, output_size_y=None):
         assert isinstance(output_size, int)

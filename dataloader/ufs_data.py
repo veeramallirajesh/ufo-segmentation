@@ -8,6 +8,7 @@ from pathlib import Path
 from torch.utils.data import Dataset
 import numpy as np
 from torchvision import transforms
+from typing import Tuple
 import pytorch_lightning as pl
 import glob
 import os
@@ -19,7 +20,7 @@ import matplotlib.pyplot as plt
 
 
 class UFSegmentationDataset(Dataset):
-        def __init__(self, data_root, bbox_dir=None, transform=None):  # initial logic happens like transform
+        def __init__(self, data_root: str = None, bbox_dir: str = None, transform=None):  # initial logic happens like transform
             super(UFSegmentationDataset, self).__init__()
             self.bbox_dir = bbox_dir
             self.img_files = glob.glob(os.path.join(data_root, 'images', '*.jpg'))
@@ -31,7 +32,7 @@ class UFSegmentationDataset(Dataset):
                 self.mask_files.append(os.path.join(data_root, 'masks', os.path.basename(img_path).split('.')[0]) + ".png")
             self.transforms = transform # transforms.Normalize((198, 198, 198), (64, 64, 64))
 
-        def __getitem__(self, index):
+        def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
             img_path = self.img_files[index]
             mask_path = self.mask_files[index]
             if self.bbox_dir is not None:
@@ -50,22 +51,25 @@ class UFSegmentationDataset(Dataset):
         def __repr__(self):
             return "Under Water Fish Segmentation Dataset"
 
-        def pre_process_image_with_bb(self, img_path, mask_path) -> tuple(PIL.Image, PIL.Image) :
-            # Code for cropping the images based on the bounding box to the model input size
+        # Code for cropping the images based on the bounding box to the model input size
+        def pre_process_image_with_bb(self, img_path, mask_path):
             # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
+            height, width = np.array(Image.open(img_path)).shape
             (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
             if (x2 - x1) < 720:
                 # if (x1 - (round(720-(x2 - x1))/2) < 0):
                 half_x = (720 - (x2 - x1)) / 2
-                x2 = x2 + math.floor(half_x)
+                # Make sure the crop region does't go beyond the width of the image
+                x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < width else width
                 # else:
-                x1 = x1 - math.ceil(half_x)
+                x1 = x1 - math.ceil(half_x) if (x1 - math.ceil(half_x)) > 0 else 0
             if (y2 - y1) < 360:
                 # if (y1 - (y2 - y1) < 0):
                 half_y = (360 - (y2 - y1)) / 2
-                y2 = y2 + math.floor(half_y)
+                # Make sure the crop region does't go beyond the height of the image
+                y2 = y2 + math.floor(half_y) if (y2 + math.floor(half_y)) < height else height
                 # else:
-                y1 = y1 - math.ceil(half_y)
+                y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
             img = Image.open(img_path).crop((x1, y1, x2, y2))
             mask = Image.open(mask_path).convert('L').crop((x1, y1, x2, y2))
             return img, mask
