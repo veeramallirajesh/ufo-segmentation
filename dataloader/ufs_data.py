@@ -16,112 +16,150 @@ import math
 import torch
 import PIL
 from PIL import Image
+from typing import Mapping
+from augmentations.augmentations import RandomVerticallyFlip, RandomHorizontallyFlip
 import matplotlib.pyplot as plt
 
 
 class UFSegmentationDataset(Dataset):
-        def __init__(self, data_root: str = None, bbox_dir: str = None, transform=None):  # initial logic happens like transform
-            super(UFSegmentationDataset, self).__init__()
-            self.bbox_dir = bbox_dir
-            self.img_files = glob.glob(os.path.join(data_root, 'images', '*.jpg'))
-            self.mask_files = []
-            if self.bbox_dir is not None:
-                # List all the bounding box file paths
-                bbox_list = glob.glob(os.path.join(bbox_dir,'*.txt'))
-            for img_path in self.img_files:
-                self.mask_files.append(os.path.join(data_root, 'masks', os.path.basename(img_path).split('.')[0]) + ".png")
-            self.transforms = transform # transforms.Normalize((198, 198, 198), (64, 64, 64))
+    def __init__(
+        self,cfg: Mapping = None, data_root: str = None, bbox_dir: str = None, transform=None
+    ):  # initial logic happens like transform
+        super(UFSegmentationDataset, self).__init__()
+        self.bbox_dir = bbox_dir
+        self.augmentation = cfg['data']['augmentation']
+        self.height = cfg['data']['height']
+        self.width = cfg['data']['width']
+        self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
+        self.mask_files = []
+        if self.bbox_dir is not None:
+            # List all the bounding box file paths
+            bbox_list = glob.glob(os.path.join(bbox_dir, "*.txt"))
+        for img_path in self.img_files:
+            self.mask_files.append(
+                os.path.join(
+                    data_root, "masks", os.path.basename(img_path).split(".")[0]
+                )
+                + ".png"
+            )
+        self.transforms = (
+            transform  # transforms.Normalize((198, 198, 198), (64, 64, 64))
+        )
+        if self.augmentation:
+            self.transforms.append(RandomVerticallyFlip, RandomHorizontallyFlip)
 
-        def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-            img_path = self.img_files[index]
-            mask_path = self.mask_files[index]
-            if self.bbox_dir is not None:
-                # img = np.array(Image.open(img_path))
-                # h, w = img.shape[0], img.shape[1]
-                img, mask = self.pre_process_image_with_bb(img_path, mask_path)
-            else:
-                img = Image.open(img_path)
-                mask = Image.open(mask_path).convert('L')
-            # return torch.from_numpy(img).float(), torch.from_numpy(mask).float()
-            return self.transforms(img), self.transforms(mask)
-
-        def __len__(self):  # return count of sample we have
-            return len(self.img_files)
-
-        def __repr__(self):
-            return "Under Water Fish Segmentation Dataset"
-
-        # Code for cropping the images based on the bounding box to the model input size
-        def pre_process_image_with_bb(self, img_path, mask_path):
-            # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
-            height, width = np.array(Image.open(img_path)).shape
-            (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
-            if (x2 - x1) < 720:
-                # if (x1 - (round(720-(x2 - x1))/2) < 0):
-                half_x = (720 - (x2 - x1)) / 2
-                # Make sure the crop region does't go beyond the width of the image
-                x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < width else width
-                # else:
-                x1 = x1 - math.ceil(half_x) if (x1 - math.ceil(half_x)) > 0 else 0
-            if (y2 - y1) < 360:
-                # if (y1 - (y2 - y1) < 0):
-                half_y = (360 - (y2 - y1)) / 2
-                # Make sure the crop region does't go beyond the height of the image
-                y2 = y2 + math.floor(half_y) if (y2 + math.floor(half_y)) < height else height
-                # else:
-                y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
-            img = Image.open(img_path).crop((x1, y1, x2, y2))
-            mask = Image.open(mask_path).convert('L').crop((x1, y1, x2, y2))
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        img_path = self.img_files[index]
+        mask_path = self.mask_files[index]
+        if self.bbox_dir is not None:
+            # img = np.array(Image.open(img_path))
+            # h, w = img.shape[0], img.shape[1]
+            img, mask = self.pre_process_image_with_bb(img_path, mask_path)
+        else:
+            img = Image.open(img_path)
+            mask = Image.open(mask_path).convert("L")
+        # return torch.from_numpy(img).float(), torch.from_numpy(mask).float()
+        if self.transforms is not None:
+            return self.transforms(img, mask)
+        else:
             return img, mask
 
-        def get_crop_coordinates(self, path):
-            bbox_file = os.path.join(self.bbox_dir, os.path.basename(path).split('.')[0] + '.txt')
-            if not os.path.exists(bbox_file):
-                print(f"Label file does not exist {bbox_file}")
-            with open(Path(bbox_file)) as f:
-                objects = []
-                for line in f:
-                    objects.append(line.strip().split())
-                    for object in objects:
-                        # If there are multiple fishes in the image crop the image including all of them
-                        # Checking if the variables are already created
-                        if 'x1' and 'y1' and 'x2' and 'y2' in locals():
-                            # Top left coordinates of a bounding box
-                            (x1, y1) = (min(x1, int(object[1])), min(y1, int(object[2])))
-                            # Bottom right coordinates of a bounding box
-                            (x2, y2) = (max(x2, int(object[3])), max(y2, int(object[4])))
-                        # Single object/ fish in the image
-                        else:
-                            # Top left coordinates of a bounding box
-                            (x1, y1) = (int(object[1]), int(object[2]))
-                            # Bottom right coordinates of a bounding box
-                            (x2, y2) = (int(object[3]), int(object[4]))
-            return (x1, y1), (x2, y2)
+    def __len__(self):  # return count of sample we have
+        return len(self.img_files)
 
+    def __repr__(self):
+        return "Under Water Fish Segmentation Dataset"
+
+    # Code for cropping the images based on the bounding box to the model input size
+    def pre_process_image_with_bb(self, img_path, mask_path):
+        # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
+        height, width = np.array(Image.open(img_path)).shape
+        (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
+        if (x2 - x1) < self.width:
+            # if (x1 - (round(720-(x2 - x1))/2) < 0):
+            half_x = (self.width - (x2 - x1)) / 2
+            # Make sure the crop region does't go beyond the width of the image
+            x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < width else width
+            # else:
+            x1 = x1 - math.ceil(half_x) if (x1 - math.ceil(half_x)) > 0 else 0
+        if (y2 - y1) < self.height:
+            # if (y1 - (y2 - y1) < 0):
+            half_y = (self.height - (y2 - y1)) / 2
+            # Make sure the crop region does't go beyond the height of the image
+            y2 = (
+                y2 + math.floor(half_y)
+                if (y2 + math.floor(half_y)) < height
+                else height
+            )
+            # else:
+            y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
+        img = Image.open(img_path).crop((x1, y1, x2, y2))
+        mask = Image.open(mask_path).convert("L").crop((x1, y1, x2, y2))
+        return img, mask
+
+    def get_crop_coordinates(self, path):
+        bbox_file = os.path.join(
+            self.bbox_dir, os.path.basename(path).split(".")[0] + ".txt"
+        )
+        if not os.path.exists(bbox_file):
+            print(f"Label file does not exist {bbox_file}")
+        with open(Path(bbox_file)) as f:
+            objects = []
+            for line in f:
+                objects.append(line.strip().split())
+                for object in objects:
+                    # If there are multiple fishes in the image crop the image including all of them
+                    # Checking if the variables are already created
+                    if "x1" and "y1" and "x2" and "y2" in locals():
+                        # Top left coordinates of a bounding box
+                        (x1, y1) = (min(x1, int(object[1])), min(y1, int(object[2])))
+                        # Bottom right coordinates of a bounding box
+                        (x2, y2) = (max(x2, int(object[3])), max(y2, int(object[4])))
+                    # Single object/ fish in the image
+                    else:
+                        # Top left coordinates of a bounding box
+                        (x1, y1) = (int(object[1]), int(object[2]))
+                        # Bottom right coordinates of a bounding box
+                        (x2, y2) = (int(object[3]), int(object[4]))
+        return (x1, y1), (x2, y2)
 
 
 class KittiDataset(Dataset):
-    def __init__(self, data_root, mode="train", transform=None):  # initial logic happens like transform
+    def __init__(
+        self, data_root, mode="train", transform=None
+    ):  # initial logic happens like transform
         super(KittiDataset, self).__init__()
-        if mode=="train":
-            self.img_files = glob.glob(os.path.join(data_root, 'training', 'image_2', '*.png'))
+        if mode == "train":
+            self.img_files = glob.glob(
+                os.path.join(data_root, "training", "image_2", "*.png")
+            )
             self.mask_files = []
             for img_path in self.img_files:
-                self.mask_files.append(os.path.join(data_root, 'training', 'semantic', os.path.basename(img_path)))
+                self.mask_files.append(
+                    os.path.join(
+                        data_root, "training", "semantic", os.path.basename(img_path)
+                    )
+                )
             self.transforms = transform
             # self.transforms = transforms.Compose(
             #     [transforms.Resize((256, 256)),
             #     transforms.ToTensor()])
         else:
-            self.img_files = glob.glob(os.path.join(data_root, 'testing', 'image_2', '*.png'))
+            self.img_files = glob.glob(
+                os.path.join(data_root, "testing", "image_2", "*.png")
+            )
             self.mask_files = []
             for img_path in self.img_files:
-                self.mask_files.append(os.path.join(data_root, 'testing', 'semantic', os.path.basename(img_path)))
+                self.mask_files.append(
+                    os.path.join(
+                        data_root, "testing", "semantic", os.path.basename(img_path)
+                    )
+                )
 
     def __getitem__(self, index):
         img_path = self.img_files[index]
         mask_path = self.mask_files[index]
-        img = Image.open(img_path).convert('RGB')
+        img = Image.open(img_path).convert("RGB")
         label = Image.open(mask_path)
         return self.transforms(img), self.transforms(label)
 
@@ -131,21 +169,30 @@ class KittiDataset(Dataset):
     def __repr__(self):
         return "KITTI Dataset"
 
+
 class UFSDataModule(pl.LightningDataModule):
-    def __init__(self, data_root, transform=None):  # initial logic happens like transform
+    def __init__(
+        self, data_root, transform=None
+    ):  # initial logic happens like transform
         super(UFSDataModule, self).__init__()
-        self.img_files = glob.glob(os.path.join(data_root, 'images', '*.jpg'))
+        self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
         self.mask_files = []
         for img_path in self.img_files:
             self.mask_files.append(
-                os.path.join(data_root, 'masks', os.path.basename(img_path).split('.')[0]) + ".png")
-        self.transforms = transform  # transforms.Normalize((198, 198, 198), (64, 64, 64))
+                os.path.join(
+                    data_root, "masks", os.path.basename(img_path).split(".")[0]
+                )
+                + ".png"
+            )
+        self.transforms = (
+            transform  # transforms.Normalize((198, 198, 198), (64, 64, 64))
+        )
 
     def __getitem__(self, index):
         img_path = self.img_files[index]
         mask_path = self.mask_files[index]
         img = Image.open(img_path)
-        mask = Image.open(mask_path).convert('L')
+        mask = Image.open(mask_path).convert("L")
         # return torch.from_numpy(img).float(), torch.from_numpy(mask).float()
         return self.transforms(img), self.transforms(mask)
 

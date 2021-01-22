@@ -25,6 +25,7 @@ def validate_batch(model_trainer, sample, metrics):
         # return averages and number of samples
         return m_results, loss, x.shape[0]
 
+
 def validate_model(model_trainer, data_val, metrics):
     acc_metric = {m.name: 0 for m in metrics}
     acc_loss = 0
@@ -48,10 +49,11 @@ def validate_model(model_trainer, data_val, metrics):
     print(f"val loss: {acc_loss / n_samples}")
     return acc_loss / n_samples, acc_metric
 
+
 def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
-    result_vid = get_writer('predictions.mp4')
+    result_vid = get_writer("predictions.mp4")
     indices = split.get_indices("test")
-    path = cfg['data']['eval_path']
+    path = cfg["data"]["eval_path"]
     acc_detected_objects = []
 
     def thresh(arr):
@@ -73,7 +75,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
             # np.save(os.path.join(path, "pred", str(idx) + ".npy"), ypred) # corresponding predicted image
 
             frame = frame.astype(np.uint8)
-            frame = np.where(frame==1, 255, 0).astype(np.uint8)
+            frame = np.where(frame == 1, 255, 0).astype(np.uint8)
             result_vid.append_data(frame)
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)
@@ -86,4 +88,3 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
 
     result_vid.close()
     print("\ncreated video. ")
-

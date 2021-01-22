@@ -5,7 +5,12 @@
 """
 
 from pathlib import Path
-from torch.utils.data import SubsetRandomSampler, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import (
+    SubsetRandomSampler,
+    DataLoader,
+    RandomSampler,
+    SequentialSampler,
+)
 from .data_utils import SubsetSequentialSampler
 import numpy as np
 
@@ -18,14 +23,22 @@ class ExistingTrainValTestSplit:
         self.dataset_test = dataset_test
 
     def make_dataloaders(self, batch_size, workers=4):
-        train_loader = DataLoader(self.dataset_train, batch_size=batch_size, num_workers=workers, shuffle=True)
-        validation_loader = DataLoader(self.dataset_val, batch_size=batch_size, num_workers=workers, shuffle=True)
+        train_loader = DataLoader(
+            self.dataset_train, batch_size=batch_size, num_workers=workers, shuffle=True
+        )
+        validation_loader = DataLoader(
+            self.dataset_val, batch_size=batch_size, num_workers=workers, shuffle=True
+        )
         test_loader = DataLoader(self.dataset_test, batch_size=1)
 
         return train_loader, validation_loader, test_loader
 
     def split_exists(self):
-        return self.dataset_train is not None and self.dataset_val is not None and self.dataset_test is not None
+        return (
+            self.dataset_train is not None
+            and self.dataset_val is not None
+            and self.dataset_test is not None
+        )
 
     def get_indices(self, test_val_train):
         if test_val_train == "test":
@@ -36,7 +49,7 @@ class ExistingTrainValTestSplit:
             return np.arange(len(self.dataset_train))
 
         raise ValueError("test_val_train")
-    
+
 
 class TrainValTestSplit:
     def __init__(self, indices_dir, dataset):
@@ -50,14 +63,22 @@ class TrainValTestSplit:
         indices = list(range(dataset_size))
         split_train_val = int(np.floor(test_split * dataset_size))
         split_train = int(np.floor(val_split * dataset_size))
-        test_indices, train_val_indices = indices[:split_train_val], indices[split_train_val:]
+        test_indices, train_val_indices = (
+            indices[:split_train_val],
+            indices[split_train_val:],
+        )
 
         if shuffle_train_val:
             np.random.shuffle(train_val_indices)
 
-        val_indices, train_indices = train_val_indices[:split_train], train_val_indices[split_train:]
+        val_indices, train_indices = (
+            train_val_indices[:split_train],
+            train_val_indices[split_train:],
+        )
 
-        print(f"{len(test_indices)} test_indices, {len(val_indices)} val_indices, {len(train_indices)} train_indices")
+        print(
+            f"{len(test_indices)} test_indices, {len(val_indices)} val_indices, {len(train_indices)} train_indices"
+        )
 
         np.save(self.indices_dir / "test.npy", test_indices)
         np.save(self.indices_dir / "val.npy", val_indices)
@@ -72,13 +93,19 @@ class TrainValTestSplit:
         s_valid = SubsetRandomSampler(val_indices)
         s_test = SubsetSequentialSampler(test_indices)  # dont shuffle the test set
 
-        train_loader = DataLoader(self.dataset, batch_size=batch_size, sampler=s_train, num_workers=workers)
-        validation_loader = DataLoader(self.dataset, batch_size=batch_size, sampler=s_valid, num_workers=workers)
+        train_loader = DataLoader(
+            self.dataset, batch_size=batch_size, sampler=s_train, num_workers=workers
+        )
+        validation_loader = DataLoader(
+            self.dataset, batch_size=batch_size, sampler=s_valid, num_workers=workers
+        )
         test_loader = DataLoader(self.dataset, batch_size=1, sampler=s_test)
 
         return train_loader, validation_loader, test_loader
 
-    def make_dataloader(self, batch_size, test_val_train, random_sampling=True, workers=4):
+    def make_dataloader(
+        self, batch_size, test_val_train, random_sampling=True, workers=4
+    ):
         indices = np.load(self.indices_dir / f"{test_val_train}.npy")
 
         if random_sampling:
@@ -86,7 +113,9 @@ class TrainValTestSplit:
         else:
             sampler = SubsetSequentialSampler(indices)
 
-        return DataLoader(self.dataset, batch_size=batch_size, sampler=sampler, num_workers=workers)
+        return DataLoader(
+            self.dataset, batch_size=batch_size, sampler=sampler, num_workers=workers
+        )
 
     def get_indices(self, test_val_train):
         indices = np.load(self.indices_dir / f"{test_val_train}.npy")

@@ -21,7 +21,7 @@ def threshold_softmax(ypred, class_dim=1):
 
 
 class AccuracyMetric:
-    def __init__(self, num_classes=None, thresh=0.5):
+    def __init__(self, num_classes=None, thresh=0.75):
         self.name = "accuracy"
         self.short_name = "acc."
         self.thresh = thresh
@@ -40,7 +40,7 @@ class AccuracyMetric:
 
 
 class IOUMetric:
-    def __init__(self, thresh=0.75): #TODO thresh was set to 0.5
+    def __init__(self, thresh=0.75):  # TODO thresh was set to 0.5
         self.name = "iou"
         self.short_name = "iou"
         self.thresh = thresh

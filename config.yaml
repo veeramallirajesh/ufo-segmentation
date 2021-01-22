@@ -10,8 +10,11 @@ data:
   kitti: # KITTI VISION Benchmark Dataset
     images: "image_2"
     labels: "semantic"
+  width: 512
+  height: 512
   eval_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval" # Path for model evaluation on test data
   rescale: "bbox" # Mode bbox or normal
+  augmentation: 0
 
 model:
   name: "pspnet" # Name of the segmentation model
@@ -21,7 +24,7 @@ model:
   encoder_weights: "imagenet"
 
 train:
-  training: 0 # Mode training or evaluationg
+  training: 1 # Mode training or evaluationg
   batch_size: 4  # batch size for training
   optimizer: "adam"  # optimizer for training
   lr: 0.001  # learning rate for the optimizer

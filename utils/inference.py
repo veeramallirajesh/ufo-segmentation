@@ -5,7 +5,12 @@
 """
 import os
 import time
-from hydra.experimental import initialize, initialize_config_module, initialize_config_dir, compose
+from hydra.experimental import (
+    initialize,
+    initialize_config_module,
+    initialize_config_dir,
+    compose,
+)
 from omegaconf import OmegaConf, open_dict
 
 import pytorch_lightning as pl
@@ -18,20 +23,26 @@ import matplotlib.pyplot as plt
 
 HOME_DIR = "/home/rajesh/pspnet"
 os.chdir(HOME_DIR)
-logs_path = os.path.join("outputs", "2020-11-18", "12-42-38") #17-06-29
+logs_path = os.path.join("outputs", "2020-11-18", "12-42-38")  # 17-06-29
 version = 0
 epoch = 19
 with initialize(config_path=os.path.join(logs_path, ".hydra")):
     cfg = compose(
         config_name="config",
-        overrides=["data.dir=/media/ssd2/datasets/public-datasets", "train.gpus=0", "train.batch_size=8", "data.dataset=kitti", "data.num_workers=8"]
+        overrides=[
+            "data.dir=/media/ssd2/datasets/public-datasets",
+            "train.gpus=0",
+            "train.batch_size=8",
+            "data.dataset=kitti",
+            "data.num_workers=8",
+        ],
     )
 
 print(OmegaConf.to_yaml(cfg))
 
 dm = get_data_module(cfg)
 # dm.setup()
-dm.setup(stage="fit") #for the Kitti dataset
+dm.setup(stage="fit")  # for the Kitti dataset
 
 with open_dict(cfg):
     cfg.model.classes = dm.classes
@@ -39,10 +50,13 @@ with open_dict(cfg):
 
 model = PSPNetLitModel.load_from_checkpoint(
     os.path.join(
-        logs_path, "lightning_logs", "version_{}".format(version), "checkpoints",
-        "epoch={}.ckpt".format(epoch)
+        logs_path,
+        "lightning_logs",
+        "version_{}".format(version),
+        "checkpoints",
+        "epoch={}.ckpt".format(epoch),
     ),
-    cfg=cfg
+    cfg=cfg,
 )
 model.eval()
 model.freeze()
@@ -57,10 +71,19 @@ for idx, (images, segmentations) in enumerate(dm.test_dataloader()):
     images, segmentations = images.numpy(), segmentations.numpy()
     predictions = np.argmax(predictions, axis=1)
     acc_start_time = time.time() - start
-    print("Processed {} images, with batch size {}, took {} seconds, averaging {} seconds per image.".format((idx + 1) * batch_size, batch_size, acc_start_time, acc_start_time / ((idx + 1) * batch_size)))
+    print(
+        "Processed {} images, with batch size {}, took {} seconds, averaging {} seconds per image.".format(
+            (idx + 1) * batch_size,
+            batch_size,
+            acc_start_time,
+            acc_start_time / ((idx + 1) * batch_size),
+        )
+    )
     # break
 
-print("Two example images, images in first row, targets in second, predictions in third, colorbar indicates class ids")
+print(
+    "Two example images, images in first row, targets in second, predictions in third, colorbar indicates class ids"
+)
 
 fig, axes = plt.subplots(figsize=(16, 8), nrows=1, ncols=2)
 plt.tight_layout()
@@ -84,7 +107,7 @@ for row in axes:
 
 # fig.subplots_adjust(bottom=0.9)
 cbar_ax = fig.add_axes([0, -0.05, 1, 0.05])
-cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal")
 cbar.set_ticks(range(dm.classes))
 cbar.ax.set_xticklabels(
     [
@@ -92,11 +115,13 @@ cbar.ax.set_xticklabels(
         # "{} - ".format(idx) + dm.classes[idx].name if idx in np.unique(predictions[:2]) else ""
         for idx in range(dm.classes)
     ],
-    rotation=90
+    rotation=90,
 )
 plt.show()
 
-print("Showing difference between targets and predictions, yellow indicates successful predictions, unsuccessful otherwise")
+print(
+    "Showing difference between targets and predictions, yellow indicates successful predictions, unsuccessful otherwise"
+)
 
 fig, axes = plt.subplots(figsize=(16, 8), nrows=1, ncols=2)
 im = axes[0].imshow((segmentations[0] - predictions[0]) == 0)

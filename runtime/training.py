@@ -16,7 +16,13 @@ from runtime.utils import iou_loss
 
 
 class ModelTrainer:
-    def __init__(self, model_path="saved_models", use_gpu=False, label_key="target", loss_fn=iou_loss):
+    def __init__(
+        self,
+        model_path="saved_models",
+        use_gpu=False,
+        label_key="target",
+        loss_fn=iou_loss,
+    ):
         self.use_gpu = use_gpu
         self.label_key = label_key
 
@@ -39,7 +45,7 @@ class ModelTrainer:
 
         now = datetime.datetime.now()
         model_dir = now.strftime("%d-%m-%Y %H:%M:%S")
-        new_dir = (self.models_dir / model_dir)
+        new_dir = self.models_dir / model_dir
         new_dir.mkdir()
 
         return new_dir
@@ -52,7 +58,11 @@ class ModelTrainer:
 
     def get_data_from_sample(self, sample, require_org=True):
         if self.use_gpu and require_org:
-            return sample["image"].cuda(), sample[self.label_key].cuda(), sample["original"].cuda()
+            return (
+                sample["image"].cuda(),
+                sample[self.label_key].cuda(),
+                sample["original"].cuda(),
+            )
         elif self.use_gpu:
             # return sample["image"].cuda(), sample[self.label_key].cuda()
             return sample[0].cuda(), sample[1].cuda()
@@ -63,8 +73,11 @@ class ModelTrainer:
 
     def get_data_from_single_example(self, sample, require_org=True):
         if require_org:
-            sample_new = {"image": sample["image"].unsqueeze(0), self.label_key: sample[self.label_key].unsqueeze(0),
-                          "original": sample["original"].unsqueeze(0)}
+            sample_new = {
+                "image": sample["image"].unsqueeze(0),
+                self.label_key: sample[self.label_key].unsqueeze(0),
+                "original": sample["original"].unsqueeze(0),
+            }
         else:
             img, mask = sample[0].unsqueeze(0), sample[1].unsqueeze(0)
         return img, mask
@@ -87,13 +100,17 @@ class ModelTrainer:
 
         return train_step
 
-    def train_model(self, data_train, data_val, n_epochs=1, break_early=-1, save_every_n_epochs=1):
+    def train_model(
+        self, data_train, data_val, n_epochs=1, break_early=-1, save_every_n_epochs=1
+    ):
         train_step = self.make_train_step()
         tensor_board_writer = SummaryWriter()
         acc_loss = 0
 
         if self.tracker_client:
-            self.tracker_client.on_train_begin(n_epochs, data_train.batch_size, len(data_train))
+            self.tracker_client.on_train_begin(
+                n_epochs, data_train.batch_size, len(data_train)
+            )
 
         current_batch = 0
         for epoch in range(n_epochs):
@@ -123,7 +140,9 @@ class ModelTrainer:
             # for m in self.metrics:
             #     tensor_board_writer.add_scalar(m.name, m_val[m.name], epoch)
 
-            tensor_board_writer.add_scalar("Loss/Train", acc_loss / len(data_train), epoch + 1)
+            tensor_board_writer.add_scalar(
+                "Loss/Train", acc_loss / len(data_train), epoch + 1
+            )
             tensor_board_writer.add_scalar("Loss/Val", loss_val, epoch)
             acc_loss = 0
 
@@ -144,7 +163,9 @@ class ModelTrainer:
         if not path:  # load latest model
             candidates = {}
             for subdir in self.models_dir.glob("*/"):
-                candidates[datetime.datetime.strptime(subdir.name, "%d-%m-%Y %H:%M:%S")] = subdir
+                candidates[
+                    datetime.datetime.strptime(subdir.name, "%d-%m-%Y %H:%M:%S")
+                ] = subdir
 
             if len(candidates) == 0:
                 raise RuntimeError("no models so far")
@@ -154,5 +175,7 @@ class ModelTrainer:
 
             path = candidates[latest] / "model.pt"
 
-        loaded_model = torch.load(path) if self.use_gpu else torch.load(path, map_location="cpu")
+        loaded_model = (
+            torch.load(path) if self.use_gpu else torch.load(path, map_location="cpu")
+        )
         self.set_model(loaded_model, path)
