@@ -10,25 +10,67 @@ import torch
 from albumentations import Resize
 from PIL import Image
 from torchvision.transforms import functional as F
-
-
-def strip_dict(dict1, keys_to_remove):
-    additional_data = dict(dict1)
-    for key in keys_to_remove:
-        if key in additional_data:
-            del additional_data[key]
-
-    return additional_data
+from typing import Any
 
 
 class Compose(object):
+    """
+    Compose different transformations, for joint transforms of both image and target.
+
+    Based on the implementation in the vision repository of pytorch.
+    https://github.com/pytorch/vision/blob/master/references/segmentation/transforms.py
+
+    Attributes
+    ----------
+    transforms : :obj: `list` of :obj: 'Transform'
+        List of transformation objects which take in image and target and transform
+        them as needed.
+    """
+
     def __init__(self, transforms):
+        """
+        Instantiates the Compose transform object.
+
+        Parameters
+        ----------
+        transforms : :obj: `list` of :obj: 'Transform'
+            List of transformation objects which take in image and target and transform
+            them as needed.
+        """
         self.transforms = transforms
 
     def __call__(self, image, target):
+        """
+        Returns the transformed image and target through each of the transforms in
+        self.transforms.
+
+        Parameters
+        ----------
+        image : PIL Image
+            PIL image to be transformed
+        target : PIL Image
+            PIL target to be transformed
+
+        Returns
+        -------
+        :obj: `(Image, Image)` or :obj: `(torch.Tensor, torch.Tensor)`
+            2-tuple of image and target, either as PIL images or torch tensors based
+            on the transformations.
+        """
         for t in self.transforms:
             image, target = t(image, target)
         return image, target
+
+    def append(self, transform: Any):
+        """
+        Appends a transform to the the object, by appending to the transforms attribute.
+
+        Parameters
+        ----------
+        transform : 'Transform' like object
+            A transform like object to append to transforms.
+        """
+        self.transforms.append(transform)
 
 
 class ApplyPreprocessing:

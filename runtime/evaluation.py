@@ -20,7 +20,7 @@ def validate_batch(model_trainer, sample, metrics):
 
         m_results = {}
         for metric in metrics:
-            m_results[metric.name] = metric(ypred, yhat)
+            m_results[metric.name] = metric(ypred, yhat)  # Calculate metrics
 
         # return averages and number of samples
         return m_results, loss, x.shape[0]
@@ -28,7 +28,7 @@ def validate_batch(model_trainer, sample, metrics):
 
 def validate_model(model_trainer, data_val, metrics):
     acc_metric = {m.name: 0 for m in metrics}
-    acc_loss = 0
+    acc_loss = 0  # accumulate loss
     n_samples = 0
 
     for sample in data_val:
@@ -57,8 +57,8 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
     acc_detected_objects = []
 
     def thresh(arr):
-        arr[arr >= 0.75] = 1
-        arr[arr <= 0.75] = 0
+        arr[arr >= 0.70] = 1
+        arr[arr <= 0.70] = 0
 
     for i, idx in enumerate(indices):
         with torch.no_grad():

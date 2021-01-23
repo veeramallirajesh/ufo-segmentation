@@ -7,20 +7,21 @@ data:
     images: "images" # Name of images directory
     labels: "masks" # Name of masks directory
     output: "box_overlay"
-  kitti: # KITTI VISION Benchmark Dataset
+  kitti: # KITTI VISION Benchmark Dataset (Proof Of Concept; POC)
     images: "image_2"
     labels: "semantic"
-  width: 512
-  height: 512
+  width: 512 # Width of the Model Input
+  height: 512 # Height of the Model Input
+  classes: "binary" # Binary or Multi-Class Segmentation
   eval_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval" # Path for model evaluation on test data
   rescale: "bbox" # Mode bbox or normal
-  augmentation: 0
+  augmentation: 0 # Include data augmentation or not
 
 model:
-  name: "pspnet" # Name of the segmentation model
+  name: "unet" # Name of the segmentation model
   encoder_name: "mobilenet_v2" # type of encoder the model is built with.
   in_channels: 1 # Inputs are grauscale images
-  activation: "identity" # could be "softmax2d" for mutliclass or 'sigmoid' for binary
+  activation: "sigmoid" # could be "softmax2d" for mutliclass or 'sigmoid' for binary
   encoder_weights: "imagenet"
 
 train:
@@ -33,6 +34,9 @@ train:
   max_epochs: 30  # maximum number of training epochs
   precision: 32  # bit precision for use in training, either 32 or 16
   saved_model_path: "/home/rveeramalli/ufo-segmentation/src/saved_models" # Path to store trained models
+
+evaluation:
+  threshold: 0.5
 
 early_stopping:
   metric: "validation/loss"  # metric for early stopping criterion

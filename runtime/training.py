@@ -50,9 +50,6 @@ class ModelTrainer:
 
         return new_dir
 
-    def track_training(self, tracker_client):
-        self.tracker_client = tracker_client
-
     def add_metric(self, metric):
         self.metrics.append(metric)
 

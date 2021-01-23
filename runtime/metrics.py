@@ -10,6 +10,7 @@ from runtime.utils import iou_pytorch, move_dim, multiclass_iou_score
 
 
 def threshold(ypred, yhat, thresh):
+    ypred = ypred.squeeze()
     ypred = ypred > thresh
     yhat = yhat > thresh
 
@@ -31,7 +32,7 @@ class AccuracyMetric:
         if self.num_classes is not None:
             ypred = threshold_softmax(ypred)
             return ((ypred == yhat).byte().sum().item()) / ypred.nelement()
-
+        # import pdb; pdb.set_trace()
         ypred, yhat = threshold(ypred, yhat, self.thresh)
         correct_el = (ypred == yhat).byte()
         correct = correct_el.sum().item()
