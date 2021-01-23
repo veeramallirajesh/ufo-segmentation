@@ -7,6 +7,7 @@ import math
 import numbers
 import random
 import numpy as np
+import torch
 import torchvision.transforms.functional as tf
 
 from PIL import Image, ImageOps
@@ -170,6 +171,48 @@ class FreeScale(object):
             img.resize(self.size, Image.BILINEAR),
             mask.resize(self.size, Image.NEAREST),
         )
+
+
+class BinaryClassMap(object):
+    """
+    Assigning binary labels for the mask
+
+    Attributes
+    ----------
+    class_map : dict
+        The dict to remap classes from current classes to the new classes.
+    """
+
+    def __init__(self):
+        """
+        Instantiates the BinaryClassMap transform.
+
+        Parameters
+        ----------
+        class_map : dict
+            The dict to remap classes from current classes to the new classes.
+        """
+        pass
+
+    def __call__(
+        self, image: torch.Tensor, target: torch.Tensor
+    ) -> (torch.Tensor, torch.Tensor):
+        """
+        Returns a mask with the classes appropriately restricted.
+
+        Parameters
+        ----------
+        image : torch.Tensor
+            Image corresponding to the segmentation mask, will be returned as is.
+        target : torch.Tensor
+            Segmentation mask tensor to be restricted.
+
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor)
+            Tuple of image and the new segmentation mask.
+        """
+        return image, (target // 255)
 
 
 class RandomTranslate(object):
