@@ -46,6 +46,9 @@ from models import pspnet, unet
 from models.pspnet import PspNetModel
 from models.unet import UnetModel
 
+gpu = 1
+os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+
 models = {"pspnet": PspNetModel, "unet": UnetModel}
 
 # Get model based on the config
@@ -79,7 +82,8 @@ def make_segmentation_net(
     height, width = get_hw(cfg)
     bbox_dir = cfg["data"]["bbox_dir"]
     if cfg["data"]["rescale"] == "bbox":
-        dataset = UFSegmentationDataset(cfg,
+        dataset = UFSegmentationDataset(
+            cfg,
             data_root=data_dir,
             bbox_dir=bbox_dir,
             transform=Compose(
@@ -141,7 +145,7 @@ def train_base(
         )
 
     l_train, l_validation, l_test = split.make_dataloaders(
-        batch_size, workers=0 if debug else 8
+        batch_size, workers=0 if debug else 4
     )
 
     # train_loader = DataLoader(dataset, batch_size=4, num_workers=0, shuffle=False)

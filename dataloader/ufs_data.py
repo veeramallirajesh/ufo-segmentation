@@ -17,19 +17,28 @@ import torch
 import PIL
 from PIL import Image
 from typing import Mapping
-from augmentations.augmentations import RandomVerticallyFlip, RandomHorizontallyFlip
+from augmentations.augmentations import (
+    RandomVerticallyFlip,
+    RandomHorizontallyFlip,
+    BinaryClassMap,
+)
 import matplotlib.pyplot as plt
 
 
 class UFSegmentationDataset(Dataset):
     def __init__(
-        self,cfg: Mapping = None, data_root: str = None, bbox_dir: str = None, transform=None
+        self,
+        cfg: Mapping = None,
+        data_root: str = None,
+        bbox_dir: str = None,
+        transform=None,
     ):  # initial logic happens like transform
         super(UFSegmentationDataset, self).__init__()
         self.bbox_dir = bbox_dir
-        self.augmentation = cfg['data']['augmentation']
-        self.height = cfg['data']['height']
-        self.width = cfg['data']['width']
+        self.augmentation = cfg["data"]["augmentation"]
+        self.height = cfg["data"]["height"]
+        self.width = cfg["data"]["width"]
+        self.classes = cfg["data"]["classes"]
         self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
         self.mask_files = []
         if self.bbox_dir is not None:
@@ -42,9 +51,9 @@ class UFSegmentationDataset(Dataset):
                 )
                 + ".png"
             )
-        self.transforms = (
-            transform  # transforms.Normalize((198, 198, 198), (64, 64, 64))
-        )
+        self.transforms = transform
+        if self.classes == "binary":
+            self.transforms.append(BinaryClassMap())
         if self.augmentation:
             self.transforms.append(RandomVerticallyFlip, RandomHorizontallyFlip)
 
@@ -57,7 +66,10 @@ class UFSegmentationDataset(Dataset):
             img, mask = self.pre_process_image_with_bb(img_path, mask_path)
         else:
             img = Image.open(img_path)
-            mask = Image.open(mask_path).convert("L")
+            mask = (
+                np.array(Image.open(mask_path).convert("L")) // 255
+            )  # Mapping class labels to 0's and 1's
+            mask = Image.fromarray(mask)
         # return torch.from_numpy(img).float(), torch.from_numpy(mask).float()
         if self.transforms is not None:
             return self.transforms(img, mask)
