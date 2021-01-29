@@ -9,7 +9,11 @@ from typing import Mapping
 from runtime.utils import get_value
 
 # MobilenetV2 encoder and DeepLabV3 decoder for segmentation
-class PspNetModel:
+class DeepLabV3Model:
+    """
+    DeepLabV3 implementation from “Rethinking Atrous Convolution for Semantic Image Segmentation”
+    """
+
     def __init__(self, cfg: Mapping = None):
         self.model = DeepLabV3(
             encoder_name=get_value(cfg, ["model", "encoder_name"], "mobilenet_v2"),

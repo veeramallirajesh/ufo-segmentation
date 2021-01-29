@@ -6,14 +6,14 @@
 
 import os
 import sys
+import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn.functional import one_hot
 import matplotlib.pyplot as plt
 import collections
-from typing import List, Any, Mapping
+from typing import List, Any, Mapping, Tuple
 
 smooth_const = 1e-6
 
@@ -103,6 +103,41 @@ def dice_loss(
     outputs: torch.Tensor, labels: torch.Tensor, smooth=smooth_const
 ) -> torch.Tensor:
     return 1 - dice_score(outputs, labels, smooth)
+
+
+# ALPHA < 0.5 penalises FP more, > 0.5 penalises FN more
+class ComboLoss(nn.Module):
+    def __init__(self, alpha=0.5, ce_ratio=0.5):
+        super(ComboLoss, self).__init__()
+        self.alpha = alpha
+        self.ce_ratio = ce_ratio
+
+    def forward(self, inputs, targets, reduce_samples=True, smooth=1):
+        e = 1e-07
+
+        # flatten label and prediction tensors
+        inputs = inputs.flatten(start_dim=1, end_dim=-1)
+        targets = targets.flatten(start_dim=1, end_dim=-1)
+
+        # True Positives, False Positives & False Negatives
+        intersection = (inputs * targets).sum()
+        dice = (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+
+        inputs = torch.clamp(inputs, e, 1.0 - e)
+        out = -(
+            self.alpha
+            * (
+                (targets * torch.log(inputs))
+                + ((1 - self.alpha) * (1.0 - targets) * torch.log(1.0 - inputs))
+            )
+        )
+        weighted_ce = out.mean(-1)
+        combo = (self.ce_ratio * weighted_ce) - ((1 - self.ce_ratio) * dice)
+
+        if reduce_samples:
+            return combo.mean()
+        else:
+            return combo
 
 
 def parse_args():
@@ -234,6 +269,28 @@ class BinaryDiceLoss(nn.Module):
             raise Exception("Unexpected reduction {}".format(self.reduction))
 
 
-# def get_new_bbox_coordinates(x1, y1, x2, y2, w, h):
-#     new_x1, new_y1 = (x1 / (w / width), y1 / (h / height))
-#     new_x2, new_y2 = (x2 / (w / width), y2 / (h / height))
+def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tuple:
+    half_x = (512 - (bottom_right[0] - top_left[0])) / 2
+    if half_x < 0:
+        half_x = 0
+    half_y = (512 - (bottom_right[1] - top_left[1])) / 2
+    if half_y < 0:
+        half_y = 0
+    # x2 = 512 - math.ceil(half_x)
+    # x1 = 0 + math.floor(half_x)
+    # y2 = 512 - math.ceil(half_y)
+    # y1 = 0 + math.floor(half_y)
+    # Pixels that were modified during pre-processing
+    # subtracted 20 pixels to make sure areas within bbox are not deactivated
+    new_top_left = ((0 + math.ceil(half_x) - 20), (0 + math.ceil(half_y) - 20))
+    # Added 20 pixels to make sure areas within bbox are not deactivated
+    new_bottom_right = (
+        (512 - math.floor(half_x) + 20),
+        (512 - math.floor(half_y) + 20),
+    )
+
+    return new_top_left, new_bottom_right
+
+
+def post_process_output_with_bbox(top_left: Tuple, bottom_right: Tuple):
+    pass

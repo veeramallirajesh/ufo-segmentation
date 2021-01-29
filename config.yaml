@@ -27,7 +27,7 @@ model:
   encoder_weights: "imagenet"
 
 train:
-  training: 1 # Mode training or evaluationg
+  training: 0 # Mode training or evaluationg
   batch_size: 4  # batch size for training
   optimizer: "adam"  # optimizer for training
   lr: 0.001  # learning rate for the optimizer
@@ -39,7 +39,7 @@ train:
   saved_model_path: "/home/rveeramalli/ufo-segmentation/src/saved_models" # Path to store trained models
 
 evaluation:
-  threshold: 0.75
+  threshold: 0.75 # Threshold the sigmoid output of the model
 
 early_stopping:
   metric: "validation/loss"  # metric for early stopping criterion

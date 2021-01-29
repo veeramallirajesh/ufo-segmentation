@@ -6,8 +6,9 @@
 import torch
 from imageio import get_writer
 import numpy as np
+from PIL import Image, ImageDraw
 
-# from runtime.utils import get_new_bbox_coordinates
+from runtime.utils import get_new_bbox_coordinates, post_process_output_with_bbox
 import os
 import matplotlib.pyplot as plt
 
@@ -69,7 +70,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
         with torch.no_grad():
             print("processing frame {}".format(idx))
             sample = data_loader[idx]
-            x, y = model_trainer.get_data_from_single_example(sample, require_org=False)
+            x, y = model_trainer.get_data_from_single_example(sample)
             model_trainer.model.eval()  # just make sure we are in the right mode
             ypred = model_trainer.model(x).squeeze().cpu().numpy()
             thresh(ypred)
@@ -78,12 +79,23 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             # save test grounf truth images and predictions as npy files
             # np.save(os.path.join(path, "test_gt", str(idx) + ".npy"), y.numpy().squeeze()) # GT test image
             # np.save(os.path.join(path, "pred", str(idx) + ".npy"), ypred) # corresponding predicted image
+            im = Image.fromarray((y.numpy().squeeze() * 255).astype(np.uint8))
+            pr = Image.fromarray((ypred * 255).astype(np.uint8))
+            im.save(os.path.join(path, "test_gt", str(idx) + ".png"))
+            pr.save(os.path.join(path, "pred", str(idx) + ".png"))
 
             frame = frame.astype(np.uint8)
             frame = np.where(frame == 1, 255, 0).astype(np.uint8)
+
             # Post-processing predictions with bbox.
-            # (x1, y1), (x2, y2) = data_loader.get_crop_coordinates(data_loader.img_files[idx])
-            # get_new_bbox_coordinates(x1, y1, x2, y2)
+            top_left, bottom_right = data_loader.get_crop_coordinates(
+                data_loader.img_files[idx]
+            )
+            width, height = Image.open(data_loader.img_files[idx]).size
+            new_top_left, new_bottom_right = get_new_bbox_coordinates(
+                top_left, bottom_right, width, height
+            )
+            frame = post_process_output_with_bbox(frame, new_top_left, new_bottom_right)
             result_vid.append_data(frame)
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)
