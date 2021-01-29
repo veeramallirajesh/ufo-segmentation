@@ -6,6 +6,8 @@
 import datetime
 import time
 from pathlib import Path
+import os
+import sys
 
 import torch
 from torch.optim import Adam
@@ -20,12 +22,9 @@ class ModelTrainer:
         self,
         model_path="saved_models",
         use_gpu=False,
-        label_key="target",
         loss_fn=iou_loss,
     ):
         self.use_gpu = use_gpu
-        self.label_key = label_key
-
         self.model = None
         self.optimizer = None
         self.tracker_client = None
@@ -42,41 +41,24 @@ class ModelTrainer:
 
     def _make_model_path(self):
         self.models_dir.mkdir(parents=True, exist_ok=True)
-
         now = datetime.datetime.now()
         model_dir = now.strftime("%d-%m-%Y %H:%M:%S")
         new_dir = self.models_dir / model_dir
         new_dir.mkdir()
-
         return new_dir
 
     def add_metric(self, metric):
         self.metrics.append(metric)
 
-    def get_data_from_sample(self, sample, require_org=True):
-        if self.use_gpu and require_org:
-            return (
-                sample["image"].cuda(),
-                sample[self.label_key].cuda(),
-                sample["original"].cuda(),
-            )
-        elif self.use_gpu:
+    def get_data_from_sample(self, sample):
+        if self.use_gpu:
             # return sample["image"].cuda(), sample[self.label_key].cuda()
             return sample[0].cuda(), sample[1].cuda()
-        elif require_org:
-            return sample["image"], sample[self.label_key], sample["original"]
         else:
-            return sample["image"], sample[self.label_key]
+            return sample[0], sample[1]
 
-    def get_data_from_single_example(self, sample, require_org=True):
-        if require_org:
-            sample_new = {
-                "image": sample["image"].unsqueeze(0),
-                self.label_key: sample[self.label_key].unsqueeze(0),
-                "original": sample["original"].unsqueeze(0),
-            }
-        else:
-            img, mask = sample[0].unsqueeze(0), sample[1].unsqueeze(0)
+    def get_data_from_single_example(self, sample):
+        img, mask = sample[0].unsqueeze(0), sample[1].unsqueeze(0)
         return img, mask
 
     def make_train_step(self):
@@ -120,7 +102,7 @@ class ModelTrainer:
                 #     validate_model(self, data_val, self.metrics)
                 #     return None
 
-                x, yhat = self.get_data_from_sample(sample, require_org=False)
+                x, yhat = self.get_data_from_sample(sample)
                 loss = train_step(x, yhat)
                 acc_loss += loss
                 print(f"{epoch + 1}-{current_batch}: {loss}")
@@ -134,8 +116,8 @@ class ModelTrainer:
             loss_val, m_val = validate_model(self, data_val, self.metrics)
             # print(f"After epochs:{epoch + 1}:validation loss is:{loss_val}, validation acc:{m_val}")
 
-            # for m in self.metrics:
-            #     tensor_board_writer.add_scalar(m.name, m_val[m.name], epoch)
+            for m in self.metrics:
+                tensor_board_writer.add_scalar(m.name, m_val[m.name], epoch)
 
             tensor_board_writer.add_scalar(
                 "Loss/Train", acc_loss / len(data_train), epoch + 1
@@ -171,6 +153,12 @@ class ModelTrainer:
             print(f"loading lastest entry from {latest}")
 
             path = candidates[latest] / "model.pt"
+
+            if not os.path.exists(path):
+                print(
+                    "The model is not completely trained. Please select appropriate trained model."
+                )
+                sys.exit()
 
         loaded_model = (
             torch.load(path) if self.use_gpu else torch.load(path, map_location="cpu")

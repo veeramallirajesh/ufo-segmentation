@@ -13,7 +13,7 @@ import collections
 #              encoder_weights="imagenet",
 #              activation="identity")
 
-
+# MobilenetV2 encoder and UNET decoder for segmentation
 class UnetModel:
     def __init__(self, cfg: Mapping = None):
         self.model = Unet(

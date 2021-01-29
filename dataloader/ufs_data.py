@@ -38,12 +38,14 @@ class UFSegmentationDataset(Dataset):
         self.augmentation = cfg["data"]["augmentation"]
         self.height = cfg["data"]["height"]
         self.width = cfg["data"]["width"]
-        self.classes = cfg["data"]["classes"]
+        self.classes = cfg["data"]["classes"].lower()
+        self.train = cfg["train"]["training"]
+        self.aug_types = [RandomVerticallyFlip(0.5), RandomHorizontallyFlip(0.5)]
         self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
         self.mask_files = []
-        if self.bbox_dir is not None:
-            # List all the bounding box file paths
-            bbox_list = glob.glob(os.path.join(bbox_dir, "*.txt"))
+        # if self.bbox_dir is not None:
+        #     # List all the bounding box file paths
+        #     bbox_list = glob.glob(os.path.join(bbox_dir, "*.txt"))
         for img_path in self.img_files:
             self.mask_files.append(
                 os.path.join(
@@ -54,16 +56,18 @@ class UFSegmentationDataset(Dataset):
         self.transforms = transform
         if self.classes == "binary":
             self.transforms.append(BinaryClassMap())
-        if self.augmentation:
-            self.transforms.append(RandomVerticallyFlip, RandomHorizontallyFlip)
+        # Add augmentations only if the mode is training.
+        if self.augmentation and self.train:
+            for aug in self.aug_types:
+                self.transforms.append(aug)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img_path = self.img_files[index]
         mask_path = self.mask_files[index]
         if self.bbox_dir is not None:
-            # img = np.array(Image.open(img_path))
-            # h, w = img.shape[0], img.shape[1]
             img, mask = self.pre_process_image_with_bb(img_path, mask_path)
+            # if img.size != (self. width, self.height):
+            #     print(f"Image path is: {img_path} and image size is: {img.size}")
         else:
             img = Image.open(img_path)
             mask = (
@@ -85,24 +89,20 @@ class UFSegmentationDataset(Dataset):
     # Code for cropping the images based on the bounding box to the model input size
     def pre_process_image_with_bb(self, img_path, mask_path):
         # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
-        height, width = np.array(Image.open(img_path)).shape
+        w, h = Image.open(img_path).size
         (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
         if (x2 - x1) < self.width:
             # if (x1 - (round(720-(x2 - x1))/2) < 0):
             half_x = (self.width - (x2 - x1)) / 2
             # Make sure the crop region does't go beyond the width of the image
-            x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < width else width
+            x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < w else w
             # else:
             x1 = x1 - math.ceil(half_x) if (x1 - math.ceil(half_x)) > 0 else 0
         if (y2 - y1) < self.height:
             # if (y1 - (y2 - y1) < 0):
             half_y = (self.height - (y2 - y1)) / 2
             # Make sure the crop region does't go beyond the height of the image
-            y2 = (
-                y2 + math.floor(half_y)
-                if (y2 + math.floor(half_y)) < height
-                else height
-            )
+            y2 = y2 + math.floor(half_y) if (y2 + math.floor(half_y)) < h else h
             # else:
             y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
         img = Image.open(img_path).crop((x1, y1, x2, y2))
@@ -119,20 +119,20 @@ class UFSegmentationDataset(Dataset):
             objects = []
             for line in f:
                 objects.append(line.strip().split())
-                for object in objects:
+                for obj in objects:
                     # If there are multiple fishes in the image crop the image including all of them
                     # Checking if the variables are already created
                     if "x1" and "y1" and "x2" and "y2" in locals():
                         # Top left coordinates of a bounding box
-                        (x1, y1) = (min(x1, int(object[1])), min(y1, int(object[2])))
+                        (x1, y1) = (min(x1, int(obj[1])), min(y1, int(obj[2])))
                         # Bottom right coordinates of a bounding box
-                        (x2, y2) = (max(x2, int(object[3])), max(y2, int(object[4])))
+                        (x2, y2) = (max(x2, int(obj[3])), max(y2, int(obj[4])))
                     # Single object/ fish in the image
                     else:
                         # Top left coordinates of a bounding box
-                        (x1, y1) = (int(object[1]), int(object[2]))
+                        (x1, y1) = (int(obj[1]), int(obj[2]))
                         # Bottom right coordinates of a bounding box
-                        (x2, y2) = (int(object[3]), int(object[4]))
+                        (x2, y2) = (int(obj[3]), int(obj[4]))
         return (x1, y1), (x2, y2)
 
 

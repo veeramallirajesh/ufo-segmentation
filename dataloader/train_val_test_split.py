@@ -117,7 +117,7 @@ class TrainValTestSplit:
             self.dataset, batch_size=batch_size, sampler=sampler, num_workers=workers
         )
 
-    def get_indices(self, test_val_train):
+    def get_indices(self, test_val_train: str = None):
         indices = np.load(self.indices_dir / f"{test_val_train}.npy")
         return indices
 

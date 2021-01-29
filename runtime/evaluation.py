@@ -6,6 +6,8 @@
 import torch
 from imageio import get_writer
 import numpy as np
+
+# from runtime.utils import get_new_bbox_coordinates
 import os
 import matplotlib.pyplot as plt
 
@@ -13,7 +15,7 @@ import matplotlib.pyplot as plt
 def validate_batch(model_trainer, sample, metrics):
     with torch.no_grad():
         model_trainer.model.eval()  # just make sure we are in the right mode
-        x, yhat = model_trainer.get_data_from_sample(sample, require_org=False)
+        x, yhat = model_trainer.get_data_from_sample(sample)
         # ypred = model_trainer.model(x).squeeze(1)
         ypred = model_trainer.model(x)
         loss = model_trainer.loss_fn(ypred, yhat).item()
@@ -50,15 +52,18 @@ def validate_model(model_trainer, data_val, metrics):
     return acc_loss / n_samples, acc_metric
 
 
-def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
+def evaluate_segmentation(cfg, model_trainer, data_loader, split):
     result_vid = get_writer("predictions.mp4")
+    bbox_dir = cfg["data"]["bbox_dir"]
     indices = split.get_indices("test")
     path = cfg["data"]["eval_path"]
     acc_detected_objects = []
+    # Make sure training and augmentation parameters are off
+    data_loader.train, data_loader.augmentation = (0, 0)
 
     def thresh(arr):
-        arr[arr >= 0.70] = 1
-        arr[arr <= 0.70] = 0
+        arr[arr >= 0.50] = 1
+        arr[arr <= 0.50] = 0
 
     for i, idx in enumerate(indices):
         with torch.no_grad():
@@ -76,6 +81,9 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split, fps=6):
 
             frame = frame.astype(np.uint8)
             frame = np.where(frame == 1, 255, 0).astype(np.uint8)
+            # Post-processing predictions with bbox.
+            # (x1, y1), (x2, y2) = data_loader.get_crop_coordinates(data_loader.img_files[idx])
+            # get_new_bbox_coordinates(x1, y1, x2, y2)
             result_vid.append_data(frame)
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)

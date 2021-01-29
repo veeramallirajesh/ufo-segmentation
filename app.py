@@ -3,20 +3,16 @@
 @author: Rajesh
 
 """
-import sys
 import os
 import hydra
 from omegaconf import DictConfig, OmegaConf, open_dict
 from dataloader.ufs_data import UFSegmentationDataset, KittiDataset
-from torch.utils.data import DataLoader
 from dataloader.train_val_test_split import TrainValTestSplit, ExistingTrainValTestSplit
 from PIL import Image
 import torch
 from typing import Mapping
 from augmentations.augmentations import (
     FreeScale,
-    RandomHorizontallyFlip,
-    RandomVerticallyFlip,
 )
 
 import numpy as np
@@ -42,7 +38,6 @@ from runtime.utils import (
 )
 from dataloader.preprocessing import ApplyPreprocessing, ToTensor, Compose
 from runtime.evaluation import evaluate_segmentation
-from models import pspnet, unet
 from models.pspnet import PspNetModel
 from models.unet import UnetModel
 
@@ -69,18 +64,16 @@ def get_hw(cfg: Mapping = None):
         return (512, 512)
 
 
-def make_segmentation_net(
-    cfg: Mapping = None, data_dir: str = None, generate_org=False
-):
-    # MobilenetV2 encoder and PSPNET decoder for segmentation
+def make_segmentation_net(cfg: Mapping = None, data_dir: str = None):
     net = get_model(cfg)
-    # net = PSPNet(encoder_name="mobilenet_v2", in_channels=1, encoder_weights="imagenet", activation="sigmoid")
-    # Pre-processing function for inputs
+    # Pre-processing function for inputs not used at the moment. It is useful for RGB images normalization.
     preprocess_f = get_preprocessing_fn(
         encoder_name="mobilenet_v2", pretrained="imagenet"
     )
-    height, width = get_hw(cfg)
+    # height, width = get_hw(cfg)
+    height, width = cfg["data"]["height"], cfg["data"]["width"]
     bbox_dir = cfg["data"]["bbox_dir"]
+    # Crop the images and masks with the help of bounding boxes and apply transforms.
     if cfg["data"]["rescale"] == "bbox":
         dataset = UFSegmentationDataset(
             cfg,
@@ -108,7 +101,7 @@ def make_segmentation_net(
                 ]
             ),
         )
-    # KITTI dataset
+    # KITTI dataset for POC
     # dataset = KittiDataset(data_root=data_dir, mode="train", transform=transforms.Compose([preprocess_f, transforms.Resize(width, height), transforms.ToTensor()]))
     return net, dataset
 
@@ -132,6 +125,7 @@ def train_base(
     use_gpu = True if torch.cuda.is_available() else False
     model_path = cfg["train"]["saved_model_path"]
     training = cfg["train"]["training"]
+    workers = cfg["train"]["workers"]
 
     split = TrainValTestSplit(indx_dir, dataset)
 
@@ -145,7 +139,7 @@ def train_base(
         )
 
     l_train, l_validation, l_test = split.make_dataloaders(
-        batch_size, workers=0 if debug else 4
+        batch_size, workers=0 if debug else workers
     )
 
     # train_loader = DataLoader(dataset, batch_size=4, num_workers=0, shuffle=False)
@@ -171,14 +165,15 @@ def train_base(
 # Loading config file is taken care by hydra
 @hydra.main(config_name="config")
 def train_segmentation_net_ufs(cfg: DictConfig):
-    # prints a styled output of the configuration details in the terminal
+    # prints a styled output of the configuration details on the terminal
     print(OmegaConf.to_yaml(cfg))
     data_dir = cfg["data"]["dir"]
     model, dataset = make_segmentation_net(cfg, data_dir)
 
     # metrics = [AreaCoveredMetric(), IOUMetric(), AccuracyMetric(), FalseNegativeRateMetric(),
     #            FalseNegativesMetric(), TruePositiveMetric()]
-    metrics = [IOUMetric(), AccuracyMetric()]
+    threshold = cfg["evaluation"]["threshold"]
+    metrics = [IOUMetric(thresh=threshold), AccuracyMetric(thresh=threshold)]
     idx_dir = cfg["data"]["idx_dir"]
     split = TrainValTestSplit(idx_dir, dataset)
 

@@ -36,7 +36,6 @@ class AccuracyMetric:
         ypred, yhat = threshold(ypred, yhat, self.thresh)
         correct_el = (ypred == yhat).byte()
         correct = correct_el.sum().item()
-
         return correct / ypred.nelement()
 
 

@@ -8,6 +8,8 @@ import os
 import sys
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.functional import one_hot
 import matplotlib.pyplot as plt
 import collections
@@ -88,16 +90,18 @@ def multiclass_dice_loss(outputs, labels, n_classes=2, n_dims=2, smooth=smooth_c
 
 
 def dice_score(outputs, labels, smooth=smooth_const):
-    numerator = 2 * (outputs * labels).sum((1, 2))
+    numerator = 2 * (outputs * labels).sum(dim=(1, 2))
     denominator = (torch.square(outputs) + torch.square(labels)).sum(
-        (1, 2)
+        dim=(1, 2)
     )  # NO square?
 
     frac = (numerator + smooth) / (denominator + smooth)
     return frac.mean()
 
 
-def dice_loss(outputs, labels, smooth=smooth_const):
+def dice_loss(
+    outputs: torch.Tensor, labels: torch.Tensor, smooth=smooth_const
+) -> torch.Tensor:
     return 1 - dice_score(outputs, labels, smooth)
 
 
@@ -185,3 +189,51 @@ def get_value(dictionary: Mapping, keys: List[str], default: Any) -> Any:
         if not dictionary or not isinstance(dictionary, collections.Mapping):
             return default
     return dictionary.get(keys[-1], default)
+
+
+class BinaryDiceLoss(nn.Module):
+    """Dice loss of binary class
+    Args:
+        smooth: A float number to smooth loss, and avoid NaN error, default: 1
+        p: Denominator value: \sum{x^p} + \sum{y^p}, default: 2
+        predict: A tensor of shape [N, *]
+        target: A tensor of shape same with predict
+        reduction: Reduction method to apply, return mean over batch if 'mean',
+            return sum if 'sum', return a tensor of shape [N,] if 'none'
+    Returns:
+        Loss tensor according to arg reduction
+    Raise:
+        Exception if unexpected reduction
+    """
+
+    def __init__(self, smooth=1, p=2, reduction="mean"):
+        super(BinaryDiceLoss, self).__init__()
+        self.smooth = smooth
+        self.p = p
+        self.reduction = reduction
+
+    def forward(self, predict, target):
+        assert (
+            predict.shape[0] == target.shape[0]
+        ), "predict & target batch size don't match"
+        predict = predict.contiguous().view(predict.shape[0], -1)
+        target = target.contiguous().view(target.shape[0], -1)
+
+        num = torch.sum(torch.mul(predict, target), dim=1) + self.smooth
+        den = torch.sum(predict.pow(self.p) + target.pow(self.p), dim=1) + self.smooth
+
+        loss = 1 - num / den
+
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        elif self.reduction == "none":
+            return loss
+        else:
+            raise Exception("Unexpected reduction {}".format(self.reduction))
+
+
+# def get_new_bbox_coordinates(x1, y1, x2, y2, w, h):
+#     new_x1, new_y1 = (x1 / (w / width), y1 / (h / height))
+#     new_x2, new_y2 = (x2 / (w / width), y2 / (h / height))

@@ -13,7 +13,7 @@ from runtime.utils import get_value
 #                encoder_weights="imagenet",
 #                activation="identity")
 
-
+# MobilenetV2 encoder and PSPNET decoder for segmentation
 class PspNetModel:
     def __init__(self, cfg: Mapping = None):
         self.model = PSPNet(
