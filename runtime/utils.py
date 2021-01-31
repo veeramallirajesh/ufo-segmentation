@@ -7,6 +7,7 @@
 import os
 import sys
 import math
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -168,28 +169,35 @@ def parse_args():
     return train, debug, train_on_gpu
 
 
-def visualize(image, mask, original_image=None, original_mask=None):
+def visualize(
+    image: np.ndarray, mask: np.ndarray, pred: np.ndarray, save_path: str, idx: int
+):
+    """
+    Function to plot and visualize the predictions of the model
+    """
+    result_path = os.path.join(save_path, "result_plots")
+    # pred = np.where(pred == 255, 1, 0) # Mapping 255 to 1
+    if not os.path.exists(result_path):
+        os.mkdir(result_path)
     fontsize = 18
 
-    if original_image is None and original_mask is None:
-        f, ax = plt.subplots(2, 1, figsize=(8, 8))
+    f, ax = plt.subplots(2, 2, figsize=(8, 8))
 
-        ax[0].imshow(image)
-        ax[1].imshow(mask)
-    else:
-        f, ax = plt.subplots(2, 2, figsize=(8, 8))
+    # Making sure the arrays are squeezed
+    ax[0, 0].imshow(image.squeeze())
+    ax[0, 0].set_title("Original image", fontsize=fontsize)
 
-        ax[0, 0].imshow(original_image)
-        ax[0, 0].set_title("Original image", fontsize=fontsize)
+    ax[1, 0].imshow(mask.squeeze())
+    ax[1, 0].set_title("Original mask", fontsize=fontsize)
 
-        ax[1, 0].imshow(original_mask)
-        ax[1, 0].set_title("Original mask", fontsize=fontsize)
+    ax[0, 1].imshow(pred.squeeze())
+    ax[0, 1].set_title("Prediction ", fontsize=fontsize)
 
-        ax[0, 1].imshow(image)
-        ax[0, 1].set_title("Transformed image", fontsize=fontsize)
+    ax[1, 1].imshow((mask - pred) == 0)
+    ax[1, 1].set_title("Difference", fontsize=fontsize)
 
-        ax[1, 1].imshow(mask)
-        ax[1, 1].set_title("Transformed mask", fontsize=fontsize)
+    plt.savefig(os.path.join(result_path, str(idx) + ".png"), format="png")
+    plt.close() # Close figure
 
 
 def get_value(dictionary: Mapping, keys: List[str], default: Any) -> Any:
@@ -282,15 +290,27 @@ def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tupl
     # y1 = 0 + math.floor(half_y)
     # Pixels that were modified during pre-processing
     # subtracted 20 pixels to make sure areas within bbox are not deactivated
-    new_top_left = ((0 + math.ceil(half_x) - 20), (0 + math.ceil(half_y) - 20))
+    new_top_left = ((0 + math.ceil(half_x)), (0 + math.ceil(half_y)))
     # Added 20 pixels to make sure areas within bbox are not deactivated
     new_bottom_right = (
-        (512 - math.floor(half_x) + 20),
-        (512 - math.floor(half_y) + 20),
+        (512 - math.floor(half_x)),
+        (512 - math.floor(half_y)),
     )
 
     return new_top_left, new_bottom_right
 
 
-def post_process_output_with_bbox(top_left: Tuple, bottom_right: Tuple):
-    pass
+def post_process_output_with_bbox(frame, top_left: Tuple, bottom_right: Tuple):
+    """
+    Function to make all the pixels outside the bounding box region of interest to black--0
+    """
+    dummy_frame = np.zeros_like(frame)
+    dummy_frame[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]] = frame[
+        top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]
+    ]
+    # Second method of doing the same
+    # frame[bottom_right[1]:, :] = 0
+    # frame[:, :top_left[0]] = 0
+    # frame[:top_left[1], :] = 0
+    # frame[:, bottom_right[0]:] = 0
+    return frame

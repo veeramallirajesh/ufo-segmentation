@@ -13,6 +13,8 @@ import torch
 from typing import Mapping
 from augmentations.augmentations import (
     FreeScale,
+    RandomVerticallyFlip,
+    RandomHorizontallyFlip,
 )
 
 import numpy as np
@@ -64,6 +66,30 @@ def get_hw(cfg: Mapping = None):
         return (512, 512)
 
 
+def get_transforms(cfg: Mapping = None):
+    height, width = cfg["data"]["height"], cfg["data"]["width"]
+    if cfg["data"]["rescale"] == "bbox":
+        if cfg["data"]["augmentation"] == 1:
+            transform = Compose(
+                [
+                    RandomHorizontallyFlip(0.5),
+                    RandomVerticallyFlip(0.5),
+                    FreeScale((height, width)),
+                    ToTensor(),
+                ]
+            )
+        else:
+            transform = Compose([FreeScale((height, width)), ToTensor()])
+    else:
+        transform = transforms.Compose(
+            [
+                transforms.Resize(size=(height, width), interpolation=Image.NEAREST),
+                transforms.ToTensor(),
+            ]
+        )
+    return transform
+
+
 def make_segmentation_net(cfg: Mapping = None, data_dir: str = None):
     net = get_model(cfg)
     # Pre-processing function for inputs not used at the moment. It is useful for RGB images normalization.
@@ -73,34 +99,40 @@ def make_segmentation_net(cfg: Mapping = None, data_dir: str = None):
     # height, width = get_hw(cfg)
     height, width = cfg["data"]["height"], cfg["data"]["width"]
     bbox_dir = cfg["data"]["bbox_dir"]
+    transform = get_transforms(cfg)
+    dataset = UFSegmentationDataset(
+        cfg, data_root=data_dir, bbox_dir=bbox_dir, transform=transform
+    )
     # Crop the images and masks with the help of bounding boxes and apply transforms.
-    if cfg["data"]["rescale"] == "bbox":
-        dataset = UFSegmentationDataset(
-            cfg,
-            data_root=data_dir,
-            bbox_dir=bbox_dir,
-            transform=Compose(
-                [
-                    # transforms.Resize(
-                    #     size=(height, width), interpolation=Image.NEAREST
-                    FreeScale((height, width)),
-                    ToTensor(),  # transforms.ToTensor(),
-                ]
-            ),
-        )
-    else:
-        dataset = UFSegmentationDataset(
-            data_root=data_dir,
-            bbox_dir=None,
-            transform=transforms.Compose(
-                [  # ApplyPreprocessing(preprocess_f),
-                    transforms.Resize(
-                        size=(height, width), interpolation=Image.NEAREST
-                    ),
-                    transforms.ToTensor(),
-                ]
-            ),
-        )
+    # if cfg["data"]["rescale"] == "bbox":
+    #     dataset = UFSegmentationDataset(
+    #         cfg,
+    #         data_root=data_dir,
+    #         bbox_dir=bbox_dir,
+    #         transform=Compose(
+    #             [
+    #                 # transforms.Resize(
+    #                 #     size=(height, width), interpolation=Image.NEAREST
+    #                 # RandomVerticallyFlip(0.5),
+    #                 # RandomHorizontallyFlip(0.5),
+    #                 FreeScale((height, width)),
+    #                 ToTensor(),  # transforms.ToTensor(),
+    #             ]
+    #         ),
+    #     )
+    # else:
+    #     dataset = UFSegmentationDataset(
+    #         data_root=data_dir,
+    #         bbox_dir=None,
+    #         transform=transforms.Compose(
+    #             [  # ApplyPreprocessing(preprocess_f),
+    #                 transforms.Resize(
+    #                     size=(height, width), interpolation=Image.NEAREST
+    #                 ),
+    #                 transforms.ToTensor(),
+    #             ]
+    #         ),
+    #     )
     # KITTI dataset for POC
     # dataset = KittiDataset(data_root=data_dir, mode="train", transform=transforms.Compose([preprocess_f, transforms.Resize(width, height), transforms.ToTensor()]))
     return net, dataset

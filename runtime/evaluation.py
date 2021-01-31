@@ -8,7 +8,11 @@ from imageio import get_writer
 import numpy as np
 from PIL import Image, ImageDraw
 
-from runtime.utils import get_new_bbox_coordinates, post_process_output_with_bbox
+from runtime.utils import (
+    get_new_bbox_coordinates,
+    post_process_output_with_bbox,
+    visualize,
+)
 import os
 import matplotlib.pyplot as plt
 
@@ -85,7 +89,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             pr.save(os.path.join(path, "pred", str(idx) + ".png"))
 
             frame = frame.astype(np.uint8)
-            frame = np.where(frame == 1, 255, 0).astype(np.uint8)
+            # frame = np.where(frame == 1, 255, 0).astype(np.uint8)
 
             # Post-processing predictions with bbox.
             top_left, bottom_right = data_loader.get_crop_coordinates(
@@ -96,6 +100,13 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
                 top_left, bottom_right, width, height
             )
             frame = post_process_output_with_bbox(frame, new_top_left, new_bottom_right)
+            visualize(
+                image=x.numpy().squeeze(),
+                mask=y.numpy().squeeze(),
+                pred=frame,
+                save_path=path,
+                idx=idx,
+            )
             result_vid.append_data(frame)
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)

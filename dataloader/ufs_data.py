@@ -35,12 +35,10 @@ class UFSegmentationDataset(Dataset):
     ):  # initial logic happens like transform
         super(UFSegmentationDataset, self).__init__()
         self.bbox_dir = bbox_dir
-        self.augmentation = cfg["data"]["augmentation"]
         self.height = cfg["data"]["height"]
         self.width = cfg["data"]["width"]
         self.classes = cfg["data"]["classes"].lower()
         self.train = cfg["train"]["training"]
-        self.aug_types = [RandomVerticallyFlip(0.5), RandomHorizontallyFlip(0.5)]
         self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
         self.mask_files = []
         # if self.bbox_dir is not None:
@@ -56,10 +54,6 @@ class UFSegmentationDataset(Dataset):
         self.transforms = transform
         if self.classes == "binary":
             self.transforms.append(BinaryClassMap())
-        # Add augmentations only if the mode is training.
-        if self.augmentation and self.train:
-            for aug in self.aug_types:
-                self.transforms.append(aug)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img_path = self.img_files[index]
