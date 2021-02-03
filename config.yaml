@@ -1,5 +1,4 @@
 data:
-#  dir: "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/data/segmentation/simple_cod_subset"
   dir: "/home/rveeramalli/ufo-segmentation/data_v1" # Directory for data with manually labelled target masks
   idx_dir: "/home/rveeramalli/ufo-segmentation/data_v1/indices_ufs" # Directory to store train-val-test split indices
   bbox_dir: "/home/rveeramalli/ufo-segmentation/data/simple_cod_subset/ground-truth" # Bounding box coordinates for the images.
@@ -15,7 +14,7 @@ data:
   classes: "binary" # Binary or Multi-Class Segmentation
   eval_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval" # Path for model evaluation on test data
   rescale: "bbox" # Mode bbox or normal
-  augmentation: 1 # Include data augmentation or not
+  augmentation: 0 # Include data augmentation or not
 #  aug_types: []
   test_split: 0.1 # Percentage of data in the test corpus set
 
@@ -46,3 +45,8 @@ early_stopping:
   min_delta: 0.00  # minimum delta expected for early stopping
   mode: "min"  # is the metric supposed to go down or up
   patience: 3  # how many epochs do we wait before stopping
+
+test: # Unknown test data
+  dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/images" # Unknown test images
+  bbox_dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/ground-truth" # Bounding box txt files
+  result_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval/new_data"

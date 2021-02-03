@@ -23,7 +23,7 @@ def validate_batch(model_trainer, sample, metrics):
         x, yhat = model_trainer.get_data_from_sample(sample)
         # ypred = model_trainer.model(x).squeeze(1)
         ypred = model_trainer.model(x)
-        loss = model_trainer.loss_fn(ypred, yhat).item()
+        loss = model_trainer.loss_fn(ypred.squeeze(), yhat).item()
 
         m_results = {}
         for metric in metrics:
@@ -79,23 +79,22 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             ypred = model_trainer.model(x).squeeze().cpu().numpy()
             thresh(ypred)
             frame = ypred.squeeze()
+            frame = frame.astype(np.uint8)
 
             # save test grounf truth images and predictions as npy files
             # np.save(os.path.join(path, "test_gt", str(idx) + ".npy"), y.numpy().squeeze()) # GT test image
             # np.save(os.path.join(path, "pred", str(idx) + ".npy"), ypred) # corresponding predicted image
-            im = Image.fromarray((y.numpy().squeeze() * 255).astype(np.uint8))
-            pr = Image.fromarray((ypred * 255).astype(np.uint8))
-            im.save(os.path.join(path, "test_gt", str(idx) + ".png"))
-            pr.save(os.path.join(path, "pred", str(idx) + ".png"))
-
-            frame = frame.astype(np.uint8)
-            # frame = np.where(frame == 1, 255, 0).astype(np.uint8)
+            # im = Image.fromarray((y.numpy().squeeze() * 255).astype(np.uint8))
+            # pr = Image.fromarray((ypred * 255).astype(np.uint8))
+            # if not os.path.exists(os.path.join(path, "test_gt")):
+            #     os.mkdir(os.path.join(path, "test_gt"))
+            # im.save(os.path.join(path, "test_gt", str(idx) + ".png"))
 
             # Post-processing predictions with bbox.
             top_left, bottom_right = data_loader.get_crop_coordinates(
                 data_loader.img_files[idx]
             )
-            width, height = Image.open(data_loader.img_files[idx]).size
+            width, height = data_loader.width, data_loader.height
             new_top_left, new_bottom_right = get_new_bbox_coordinates(
                 top_left, bottom_right, width, height
             )
@@ -107,6 +106,12 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
                 save_path=path,
                 idx=idx,
             )
+            frame = Image.fromarray((frame * 255).astype(np.uint8))
+            # Saving post-processed frame to video
+            if not os.path.exists(os.path.join(path, "pred")):
+                os.mkdir(os.path.join(path, "pred"))
+            frame.save(os.path.join(path, "pred", str(idx) + ".png"))
+            frame = np.where(frame == 1, 255, 0).astype(np.uint8)
             result_vid.append_data(frame)
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)

@@ -278,10 +278,10 @@ class BinaryDiceLoss(nn.Module):
 
 
 def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tuple:
-    half_x = (512 - (bottom_right[0] - top_left[0])) / 2
+    half_x = (w - (bottom_right[0] - top_left[0])) / 2
     if half_x < 0:
         half_x = 0
-    half_y = (512 - (bottom_right[1] - top_left[1])) / 2
+    half_y = (h - (bottom_right[1] - top_left[1])) / 2
     if half_y < 0:
         half_y = 0
     # x2 = 512 - math.ceil(half_x)
@@ -293,8 +293,8 @@ def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tupl
     new_top_left = ((0 + math.ceil(half_x)), (0 + math.ceil(half_y)))
     # Added 20 pixels to make sure areas within bbox are not deactivated
     new_bottom_right = (
-        (512 - math.floor(half_x)),
-        (512 - math.floor(half_y)),
+        (w - math.floor(half_x)),
+        (h - math.floor(half_y)),
     )
 
     return new_top_left, new_bottom_right

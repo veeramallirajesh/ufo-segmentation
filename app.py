@@ -42,16 +42,17 @@ from dataloader.preprocessing import ApplyPreprocessing, ToTensor, Compose
 from runtime.evaluation import evaluate_segmentation
 from models.pspnet import PspNetModel
 from models.unet import UnetModel
+from models.deeplabv3 import DeepLabV3Model
 
 gpu = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
-models = {"pspnet": PspNetModel, "unet": UnetModel}
+models = {"pspnet": PspNetModel, "unet": UnetModel, "deeplabv3": DeepLabV3Model}
 
 # Get model based on the config
 def get_model(cfg: Mapping = None):
     model_name = cfg["model"]["name"].lower()
-    model = models.get(model_name, "pspnet")(cfg).model
+    model = models.get(model_name, "pspnet")(cfg).model # If model name doeen't exist it returns pspnet by defualt
     # model = eval(model_name).model
     return model
 
@@ -93,9 +94,9 @@ def get_transforms(cfg: Mapping = None):
 def make_segmentation_net(cfg: Mapping = None, data_dir: str = None):
     net = get_model(cfg)
     # Pre-processing function for inputs not used at the moment. It is useful for RGB images normalization.
-    preprocess_f = get_preprocessing_fn(
-        encoder_name="mobilenet_v2", pretrained="imagenet"
-    )
+    # preprocess_f = get_preprocessing_fn(
+    #     encoder_name="mobilenet_v2", pretrained="imagenet"
+    # )
     # height, width = get_hw(cfg)
     height, width = cfg["data"]["height"], cfg["data"]["width"]
     bbox_dir = cfg["data"]["bbox_dir"]
@@ -155,6 +156,7 @@ def train_base(
     epochs = cfg["train"]["max_epochs"]
     batch_size = cfg["train"]["batch_size"]
     use_gpu = True if torch.cuda.is_available() else False
+    print(f"Using GPU: {use_gpu}")
     model_path = cfg["train"]["saved_model_path"]
     training = cfg["train"]["training"]
     workers = cfg["train"]["workers"]

@@ -18,8 +18,6 @@ import PIL
 from PIL import Image
 from typing import Mapping
 from augmentations.augmentations import (
-    RandomVerticallyFlip,
-    RandomHorizontallyFlip,
     BinaryClassMap,
 )
 import matplotlib.pyplot as plt
@@ -34,30 +32,25 @@ class UFSegmentationDataset(Dataset):
         transform=None,
     ):  # initial logic happens like transform
         super(UFSegmentationDataset, self).__init__()
+        self.data_root = data_root
         self.bbox_dir = bbox_dir
         self.height = cfg["data"]["height"]
         self.width = cfg["data"]["width"]
         self.classes = cfg["data"]["classes"].lower()
         self.train = cfg["train"]["training"]
-        self.img_files = glob.glob(os.path.join(data_root, "images", "*.jpg"))
-        self.mask_files = []
+        self.img_files = glob.glob(os.path.join(self.data_root, "images", "*.jpg"))
         # if self.bbox_dir is not None:
         #     # List all the bounding box file paths
         #     bbox_list = glob.glob(os.path.join(bbox_dir, "*.txt"))
-        for img_path in self.img_files:
-            self.mask_files.append(
-                os.path.join(
-                    data_root, "masks", os.path.basename(img_path).split(".")[0]
-                )
-                + ".png"
-            )
         self.transforms = transform
-        if self.classes == "binary":
+        if self.classes == "binary" and self.transforms is not None:
             self.transforms.append(BinaryClassMap())
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img_path = self.img_files[index]
-        mask_path = self.mask_files[index]
+        mask_path = os.path.join(
+            self.data_root, "masks", os.path.basename(img_path).split(".")[0] + ".png"
+        )
         if self.bbox_dir is not None:
             img, mask = self.pre_process_image_with_bb(img_path, mask_path)
             # if img.size != (self. width, self.height):
@@ -68,7 +61,6 @@ class UFSegmentationDataset(Dataset):
                 np.array(Image.open(mask_path).convert("L")) // 255
             )  # Mapping class labels to 0's and 1's
             mask = Image.fromarray(mask)
-        # return torch.from_numpy(img).float(), torch.from_numpy(mask).float()
         if self.transforms is not None:
             return self.transforms(img, mask)
         else:
@@ -81,7 +73,7 @@ class UFSegmentationDataset(Dataset):
         return "Under Water Fish Segmentation Dataset"
 
     # Code for cropping the images based on the bounding box to the model input size
-    def pre_process_image_with_bb(self, img_path, mask_path):
+    def pre_process_image_with_bb(self, img_path: str, mask_path: str = None):
         # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
         w, h = Image.open(img_path).size
         (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
@@ -100,8 +92,11 @@ class UFSegmentationDataset(Dataset):
             # else:
             y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
         img = Image.open(img_path).crop((x1, y1, x2, y2))
-        mask = Image.open(mask_path).convert("L").crop((x1, y1, x2, y2))
-        return img, mask
+        if mask_path is None:
+            return img
+        else:
+            mask = Image.open(mask_path).convert("L").crop((x1, y1, x2, y2))
+            return img, mask
 
     def get_crop_coordinates(self, path):
         bbox_file = os.path.join(
