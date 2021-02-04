@@ -1,4 +1,4 @@
-# Semantic Segmentation of Aquatic Organisms from Underwater Videos
+# Semantic Segmentation of Aquatic Organisms in Underwater Videos
 # ufo-segmentation
 Semantic Segmentation of Aquatic Organisms in Underwater Videos
 
