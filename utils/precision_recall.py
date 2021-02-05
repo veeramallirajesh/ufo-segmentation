@@ -15,6 +15,8 @@ import os
 precision_avg = []
 recall_avg = []
 
+model_scores = {"deeplabv3": None, "pspnet": None, "unet": None}  # All the models
+
 
 def calc_precision_recall(pred, gt):
     """precision = TP / TP + FP
@@ -30,8 +32,10 @@ def calc_precision_recall(pred, gt):
 
 def precision_recall(gt_path, pred_path, is_npy=False):
     # List of ground truth masks
-    gt_list = sorted(os.listdir(gt_path))
-    pred_list = sorted(os.listdir(pred_path))
+    gt_list = sorted([file for file in os.listdir(gt_path) if file.endswith(".npy")])
+    pred_list = sorted(
+        [file for file in os.listdir(pred_path) if file.endswith(".npy")]
+    )
     # Containers for true positives and false positive rates
     precision_scores = []
     recall_scores = []
@@ -94,10 +98,50 @@ def plot_pr_curve(p_scores, r_scores, prob_thresh):
     plt.show()
 
 
+def plot_comparitive_pr_curve(model_scores):
+    """
+    Function to plot PR Curve comparision graph for all the models.
+    """
+    print("plotting Precision-Recall comparision curve")
+    for i, key in enumerate(model_scores.keys()):
+        assert isinstance(model_scores[key][0], list) and isinstance(
+            model_scores[key][1], list
+        ), "All scores should be of type list"
+        if i == 0:
+            # Plot PR curve
+            fig, ax = plt.subplots(figsize=(6, 6))
+        # no_skill = len(testy[testy == 1]) / len(testy)
+        ax.plot([0.2, 1], [0, 0], linestyle="--", label="No Skill")
+        ax.plot(
+            model_scores[key][1],
+            model_scores[key][0],
+            marker=".",
+            label=f"{key} Model-Output",
+        )
+        # for idx in range(0, len(p_scores), 2):
+        #     plt.text(r_scores[idx], p_scores[idx], "{:.2f}".format(prob_thresh[idx]))
+        ax.set_xlabel("Recall")
+        ax.set_ylabel("Precision")
+        ax.legend(loc="center left")
+    plt.title("PR Curve", loc="center")
+    plt.show()
+
+
 if __name__ == "__main__":
-    gt_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval/test_gt"
-    # path to ONNX output
-    pred_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval/pred"
-    print("Generating Precision-Recall Scores for Model Output")
-    p_scores, r_scores, prob_thresh = precision_recall(gt_path, pred_path, is_npy=True)
-    plot_pr_curve(p_scores, r_scores, prob_thresh)
+    gt_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval/test_gt"  # Path to ground-truth
+    pred_path = (
+        "/home/rveeramalli/ufo-segmentation/data_v1/eval"  # Path to model output
+    )
+    for key in model_scores.keys():
+        print(f"Generating Precision-Recall Scores for {key} Model Output")
+        new_pred_path = os.path.join(
+            pred_path, str(key), "pred_npy"
+        )  # Predictions path
+        p_scores, r_scores, prob_thresh = precision_recall(
+            gt_path, new_pred_path, is_npy=True
+        )
+        model_scores[key] = (p_scores, r_scores, prob_thresh)
+
+    plot_comparitive_pr_curve(model_scores)
+    # p_scores, r_scores, prob_thresh = precision_recall(gt_path, pred_path, is_npy=True)
+    # plot_pr_curve(p_scores, r_scores, prob_thresh)

@@ -149,7 +149,7 @@ class ModelTrainer:
             if len(candidates) == 0:
                 raise RuntimeError("no models so far")
 
-            latest = sorted(candidates.keys())[-1]
+            latest = sorted(candidates.keys())[-1]  # Loads latest model file
             print(f"loading lastest entry from {latest}")
 
             path = candidates[latest] / "model.pt"

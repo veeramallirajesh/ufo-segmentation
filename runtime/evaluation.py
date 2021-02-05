@@ -67,6 +67,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
     data_loader.train, data_loader.augmentation = (0, 0)
 
     def thresh(arr):
+        # Implicit modifications
         arr[arr >= 0.50] = 1
         arr[arr <= 0.50] = 0
 
@@ -81,9 +82,9 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             frame = ypred.squeeze()
             frame = frame.astype(np.uint8)
 
-            # save test grounf truth images and predictions as npy files
+            # save test ground truth images and predictions as npy files
             # np.save(os.path.join(path, "test_gt", str(idx) + ".npy"), y.numpy().squeeze()) # GT test image
-            # np.save(os.path.join(path, "pred", str(idx) + ".npy"), ypred) # corresponding predicted image
+            # np.save(os.path.join(path, "pred_npy", str(idx) + ".npy"), ypred) # corresponding predicted image
             # im = Image.fromarray((y.numpy().squeeze() * 255).astype(np.uint8))
             # pr = Image.fromarray((ypred * 255).astype(np.uint8))
             # if not os.path.exists(os.path.join(path, "test_gt")):
@@ -98,21 +99,24 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             new_top_left, new_bottom_right = get_new_bbox_coordinates(
                 top_left, bottom_right, width, height
             )
-            frame = post_process_output_with_bbox(frame, new_top_left, new_bottom_right)
+            new_frame = post_process_output_with_bbox(
+                frame, new_top_left, new_bottom_right
+            )
             visualize(
                 image=x.numpy().squeeze(),
                 mask=y.numpy().squeeze(),
-                pred=frame,
+                pred=new_frame,
                 save_path=path,
                 idx=idx,
             )
-            frame = Image.fromarray((frame * 255).astype(np.uint8))
+            frame_img = Image.fromarray((new_frame * 255).astype(np.uint8))
             # Saving post-processed frame to video
             if not os.path.exists(os.path.join(path, "pred")):
                 os.mkdir(os.path.join(path, "pred"))
-            frame.save(os.path.join(path, "pred", str(idx) + ".png"))
-            frame = np.where(frame == 1, 255, 0).astype(np.uint8)
-            result_vid.append_data(frame)
+            frame_img.save(os.path.join(path, "pred", str(idx) + ".png"))
+            new_frame = np.where(new_frame == 1, 255, 0).astype(np.uint8)
+            result_vid.append_data(new_frame)
+
             # gt = y.numpy().squeeze()
             # gt = gt.astype(np.uint8)
             # gt = np.where(gt==1, 255, 0).astype(np.uint8)

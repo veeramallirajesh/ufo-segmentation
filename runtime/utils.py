@@ -197,7 +197,7 @@ def visualize(
     ax[1, 1].set_title("Difference", fontsize=fontsize)
 
     plt.savefig(os.path.join(result_path, str(idx) + ".png"), format="png")
-    plt.close() # Close figure
+    plt.close()  # Close figure
 
 
 def get_value(dictionary: Mapping, keys: List[str], default: Any) -> Any:
