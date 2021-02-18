@@ -64,7 +64,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
     path = cfg["data"]["eval_path"]
     acc_detected_objects = []
     # Make sure training and augmentation parameters are off
-    data_loader.train, data_loader.augmentation = (0, 0)
+    data_loader.train = 0
 
     def thresh(arr):
         # Implicit modifications
@@ -92,10 +92,12 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             # im.save(os.path.join(path, "test_gt", str(idx) + ".png"))
 
             # Post-processing predictions with bbox.
+            # Fetch actual bbox coordinates
             top_left, bottom_right = data_loader.get_crop_coordinates(
                 data_loader.img_files[idx]
             )
             width, height = data_loader.width, data_loader.height
+            # Fetch new bbox coordinates as the image is upsized/downsized in pre-processing.
             new_top_left, new_bottom_right = get_new_bbox_coordinates(
                 top_left, bottom_right, width, height
             )

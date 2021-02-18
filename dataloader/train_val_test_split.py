@@ -99,7 +99,9 @@ class TrainValTestSplit:
         validation_loader = DataLoader(
             self.dataset, batch_size=batch_size, sampler=s_valid, num_workers=workers
         )
-        test_loader = DataLoader(self.dataset, batch_size=1, sampler=s_test) # Batch size for evaluation is 1.
+        test_loader = DataLoader(
+            self.dataset, batch_size=1, sampler=s_test
+        )  # Batch size for evaluation is 1.
 
         return train_loader, validation_loader, test_loader
 

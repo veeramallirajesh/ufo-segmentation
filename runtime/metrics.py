@@ -10,7 +10,7 @@ from runtime.utils import iou_pytorch, move_dim, multiclass_iou_score
 
 
 def threshold(ypred, yhat, thresh):
-    ypred = ypred.squeeze()
+    ypred = ypred.squeeze()  # Squeezing the color dimension
     ypred = ypred > thresh
     yhat = yhat > thresh
 
@@ -33,6 +33,7 @@ class AccuracyMetric:
             ypred = threshold_softmax(ypred)
             return ((ypred == yhat).byte().sum().item()) / ypred.nelement()
         # import pdb; pdb.set_trace()
+        # print(f"Accuracy shapes ypred:{ypred.shape}, yhat:{yhat.shape}")
         ypred, yhat = threshold(ypred, yhat, self.thresh)
         correct_el = (ypred == yhat).byte()
         correct = correct_el.sum().item()
@@ -46,6 +47,7 @@ class IOUMetric:
         self.thresh = thresh
 
     def __call__(self, ypred, yhat, *args, **kwargs):
+        # print(f"IOU shapes ypred:{ypred.shape}, yhat:{yhat.shape}")
         ypred, yhat = threshold(ypred, yhat, self.thresh)
         return iou_pytorch(ypred.byte(), yhat.byte()).item()
 

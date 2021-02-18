@@ -20,7 +20,7 @@ from torch.optim import Adam
 from runtime.utils import iou_loss, dice_loss
 
 im = Image.open(
-    "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/data/segmentation/simple_cod_subset/images/19_07_2016_04h30m48s541ms.jpg"
+    "/home/rveeramalli/ufo-segmentation/data_v1/images/19_07_2016_04h30m48s541ms.jpg"
 )
 
 # transform = transforms.Compose([transforms.ToTensor(),

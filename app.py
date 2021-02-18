@@ -69,8 +69,10 @@ def get_hw(cfg: Mapping = None):
 
 def get_transforms(cfg: Mapping = None):
     height, width = cfg["data"]["height"], cfg["data"]["width"]
+    # Crop the images and masks with the help of bounding boxes and apply transforms.
     if cfg["data"]["rescale"] == "bbox":
-        if cfg["data"]["augmentation"] == 1:
+        # Augmenet only if the mode is training and augment flag is set.
+        if cfg["data"]["augmentation"] == 1 and cfg["train"]["training"] == 1:
             transform = Compose(
                 [
                     RandomHorizontallyFlip(0.5),
@@ -81,6 +83,7 @@ def get_transforms(cfg: Mapping = None):
             )
         else:
             transform = Compose([FreeScale((height, width)), ToTensor()])
+    # No bbox pre-processing required.
     else:
         transform = transforms.Compose(
             [
@@ -104,36 +107,7 @@ def make_segmentation_net(cfg: Mapping = None, data_dir: str = None):
     dataset = UFSegmentationDataset(
         cfg, data_root=data_dir, bbox_dir=bbox_dir, transform=transform
     )
-    # Crop the images and masks with the help of bounding boxes and apply transforms.
-    # if cfg["data"]["rescale"] == "bbox":
-    #     dataset = UFSegmentationDataset(
-    #         cfg,
-    #         data_root=data_dir,
-    #         bbox_dir=bbox_dir,
-    #         transform=Compose(
-    #             [
-    #                 # transforms.Resize(
-    #                 #     size=(height, width), interpolation=Image.NEAREST
-    #                 # RandomVerticallyFlip(0.5),
-    #                 # RandomHorizontallyFlip(0.5),
-    #                 FreeScale((height, width)),
-    #                 ToTensor(),  # transforms.ToTensor(),
-    #             ]
-    #         ),
-    #     )
-    # else:
-    #     dataset = UFSegmentationDataset(
-    #         data_root=data_dir,
-    #         bbox_dir=None,
-    #         transform=transforms.Compose(
-    #             [  # ApplyPreprocessing(preprocess_f),
-    #                 transforms.Resize(
-    #                     size=(height, width), interpolation=Image.NEAREST
-    #                 ),
-    #                 transforms.ToTensor(),
-    #             ]
-    #         ),
-    #     )
+
     # KITTI dataset for POC
     # dataset = KittiDataset(data_root=data_dir, mode="train", transform=transforms.Compose([preprocess_f, transforms.Resize(width, height), transforms.ToTensor()]))
     return net, dataset
@@ -163,7 +137,7 @@ def train_base(
 
     split = TrainValTestSplit(indx_dir, dataset)
 
-    print(f"training model: {cfg['model']['name']}" if training else "evaluating")
+    print(f"Training model: {cfg['model']['name']}" if training else "evaluating")
 
     if not split.split_exists() and not train:
         raise RuntimeError("in eval mode, but cannot find data split")

@@ -32,6 +32,7 @@ def move_dim(t1, source, target):
 
 
 def iou_pytorch(outputs, labels, smooth=smooth_const):
+    # print(f"IOU pytorch shapes ypred:{outputs.shape}, yhat:{labels.shape}")
     intersection = (
         (outputs & labels).float().sum((1, 2))
     )  # Will be zero if Truth=0 or Prediction=0
@@ -277,6 +278,73 @@ class BinaryDiceLoss(nn.Module):
             raise Exception("Unexpected reduction {}".format(self.reduction))
 
 
+class EarlyStopping:
+    """Early stops the training if validation loss doesn't improve after a given patience."""
+
+    def __init__(
+        self, patience=7, verbose=False, delta=0, path="checkpoint.pt", trace_func=print
+    ):
+        """
+        Args:
+            patience (int): How long to wait after last time validation loss improved.
+                            Default: 7
+            verbose (bool): If True, prints a message for each validation loss improvement.
+                            Default: False
+            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+                            Default: 0
+            path (str): Path for the checkpoint to be saved to.
+                            Default: 'checkpoint.pt'
+            trace_func (function): trace print function.
+                            Default: print
+        """
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.delta = delta
+        self.path = path
+        self.trace_func = trace_func
+
+    def __call__(self, val_loss, model):
+
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            self.trace_func(
+                f"EarlyStopping counter: {self.counter} out of {self.patience}"
+            )
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        """Saves model when validation loss decrease."""
+        if self.verbose:
+            self.trace_func(
+                f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
+            )
+        torch.save(model.state_dict(), self.path)
+        self.val_loss_min = val_loss
+
+
+def discard_features(model):
+    """
+    Function to discard weights of unused layers of the encoder.
+    We are using encoder depth of only 3.
+    """
+    del model.encoder.features[7:]
+    return model
+
+
 def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tuple:
     half_x = (w - (bottom_right[0] - top_left[0])) / 2
     if half_x < 0:
@@ -300,7 +368,9 @@ def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tupl
     return new_top_left, new_bottom_right
 
 
-def post_process_output_with_bbox(frame, top_left: Tuple, bottom_right: Tuple):
+def post_process_output_with_bbox(
+    frame: np.ndarray, top_left: Tuple, bottom_right: Tuple
+):
     """
     Function to make all the pixels outside the bounding box region of interest to black--0
     """
@@ -314,3 +384,21 @@ def post_process_output_with_bbox(frame, top_left: Tuple, bottom_right: Tuple):
     # frame[:top_left[1], :] = 0
     # frame[:, bottom_right[0]:] = 0
     return frame
+
+
+def display_mask_on_image(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """
+    Function to overlay predicted mask on the original image with alpha blending.
+    img: original image array -- here grayscale images (512x512)
+    mask: predicted mask from the model (512x512).
+    """
+    if mask.max() == 1:
+        mask *= 255  # if mask is of 0's and 1's
+    if img.max() < 1:
+        img = img.astype(np.float) * 150
+    else:
+        img = img.astype(np.float) * 0.7
+    img[:, :] += 0.5 * mask  # If there is no channel dimension
+    img = np.clip(img, 0, 255)
+
+    return img.astype(np.uint8)

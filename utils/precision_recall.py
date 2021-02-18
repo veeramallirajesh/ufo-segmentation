@@ -15,7 +15,7 @@ import os
 precision_avg = []
 recall_avg = []
 
-model_scores = {"deeplabv3": None, "pspnet": None, "unet": None}  # All the models
+model_scores = {"pspnet": None, "unet": None, "deeplabv3": None}  # All the models
 
 
 def calc_precision_recall(pred, gt):
@@ -39,7 +39,7 @@ def precision_recall(gt_path, pred_path, is_npy=False):
     # Containers for true positives and false positive rates
     precision_scores = []
     recall_scores = []
-    prob_thresh = np.linspace(0, 1, num=101)
+    prob_thresh = np.linspace(0, 1, num=11)
     for thresh in prob_thresh:
         TP = 0  # True Positives
         FP = 0  # False Positives
@@ -111,15 +111,15 @@ def plot_comparitive_pr_curve(model_scores):
             # Plot PR curve
             fig, ax = plt.subplots(figsize=(6, 6))
         # no_skill = len(testy[testy == 1]) / len(testy)
-        ax.plot([0.2, 1], [0, 0], linestyle="--", label="No Skill")
+        # ax.plot([0.2, 1], [0, 0], linestyle="--", label="No Skill")
         ax.plot(
             model_scores[key][1],
             model_scores[key][0],
             marker=".",
             label=f"{key} Model-Output",
         )
-        # for idx in range(0, len(p_scores), 2):
-        #     plt.text(r_scores[idx], p_scores[idx], "{:.2f}".format(prob_thresh[idx]))
+        for idx in range(0, len(p_scores), 2):
+            plt.text(r_scores[idx], p_scores[idx], "{:.2f}".format(prob_thresh[idx]))
         ax.set_xlabel("Recall")
         ax.set_ylabel("Precision")
         ax.legend(loc="center left")
@@ -129,9 +129,7 @@ def plot_comparitive_pr_curve(model_scores):
 
 if __name__ == "__main__":
     gt_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval/test_gt"  # Path to ground-truth
-    pred_path = (
-        "/home/rveeramalli/ufo-segmentation/data_v1/eval"  # Path to model output
-    )
+    pred_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval"  # Path to model output -- unthresholded
     for key in model_scores.keys():
         print(f"Generating Precision-Recall Scores for {key} Model Output")
         new_pred_path = os.path.join(

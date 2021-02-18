@@ -44,7 +44,9 @@ class UFSegmentationDataset(Dataset):
         #     bbox_list = glob.glob(os.path.join(bbox_dir, "*.txt"))
         self.transforms = transform
         if self.classes == "binary" and self.transforms is not None:
-            self.transforms.append(BinaryClassMap())
+            self.transforms.append(
+                BinaryClassMap()
+            )  # Assigns binary class labels for the mask
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         img_path = self.img_files[index]
@@ -93,7 +95,11 @@ class UFSegmentationDataset(Dataset):
             y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
         img = Image.open(img_path).crop((x1, y1, x2, y2))
         if mask_path is None:
-            return img
+            return (
+                img,
+                (x1, y1),
+                (x2, y2),
+            )  # Return pre-processed image and new bbox co-ordinates
         else:
             mask = Image.open(mask_path).convert("L").crop((x1, y1, x2, y2))
             return img, mask

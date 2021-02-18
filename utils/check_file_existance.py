@@ -8,6 +8,7 @@
 To check if bbox label files exist for all the test images.
 """
 import os
+
 path = "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/images"
 gt_path = "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/ground-truth"
 

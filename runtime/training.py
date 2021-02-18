@@ -86,10 +86,10 @@ class ModelTrainer:
         tensor_board_writer = SummaryWriter()
         acc_loss = 0
 
-        if self.tracker_client:
-            self.tracker_client.on_train_begin(
-                n_epochs, data_train.batch_size, len(data_train)
-            )
+        # if self.tracker_client:
+        #     self.tracker_client.on_train_begin(
+        #         n_epochs, data_train.batch_size, len(data_train)
+        #     )
 
         current_batch = 0
         for epoch in range(n_epochs):
@@ -107,8 +107,8 @@ class ModelTrainer:
                 acc_loss += loss
                 print(f"{epoch + 1}-{current_batch}: {loss}")
 
-                if self.tracker_client:
-                    self.tracker_client.on_train_batch_end(current_batch, epoch)
+                # if self.tracker_client:
+                #     self.tracker_client.on_train_batch_end(current_batch, epoch)
 
             end = time.time()
             print(f"----------- epoch {epoch + 1} done in {end-start:.2f}s. validating")
@@ -122,7 +122,7 @@ class ModelTrainer:
             tensor_board_writer.add_scalar(
                 "Loss/Train", acc_loss / len(data_train), epoch + 1
             )
-            tensor_board_writer.add_scalar("Loss/Val", loss_val, epoch)
+            tensor_board_writer.add_scalar("Loss/Val", loss_val, epoch + 1)
             acc_loss = 0
 
             if (epoch + 1) % save_every_n_epochs == 0:
