@@ -15,7 +15,7 @@ import os
 import math
 import torch
 import PIL
-from PIL import Image
+from PIL import Image, ImageDraw
 from typing import Mapping
 from augmentations.augmentations import (
     BinaryClassMap,
@@ -53,6 +53,7 @@ class UFSegmentationDataset(Dataset):
         mask_path = os.path.join(
             self.data_root, "masks", os.path.basename(img_path).split(".")[0] + ".png"
         )
+        # Pre=process images with bbox
         if self.bbox_dir is not None:
             img, mask = self.pre_process_image_with_bb(img_path, mask_path)
             # if img.size != (self. width, self.height):

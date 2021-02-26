@@ -15,7 +15,7 @@ from dataloader.ufs_data import UFSegmentationDataset
 from omegaconf import DictConfig
 from torchvision import transforms
 from typing import Tuple, Optional
-from runtime.utils import get_new_bbox_coordinates, post_process_output_with_bbox
+from runtime.utils import get_new_bbox_coordinates, PostProcessOutputWithBbox
 
 
 def thresh(pred):
@@ -25,8 +25,12 @@ def thresh(pred):
 
 
 # Check if the co-ordinates are the result crop enlargement without and resizing
-def check_coordinates(top: Tuple, bottom: Tuple) -> bool:
-    if (top[0] and top[1]) != 0 and (bottom[0] < 1280) and (bottom[1] < 1024):
+def check_coordinates(cfg: DictConfig, top: Tuple, bottom: Tuple) -> bool:
+    height, width = (
+        cfg["test"]["height"],
+        cfg["test"]["width"],
+    )  # height and width of all the test images.
+    if (top[0] and top[1]) != 0 and (bottom[0] < width) and (bottom[1] < height):
         if ((bottom[0] - top[0]) <= 512) or ((bottom[1] - top[1]) <= 512):
             return True
     return False
@@ -36,7 +40,7 @@ def check_coordinates(top: Tuple, bottom: Tuple) -> bool:
 @hydra.main(config_name="../config")
 def test_model(cfg: DictConfig):
     """
-    Function to run the model inference on the test data.
+    Function to run the model inference on the unknown test data.
     """
     image_path = cfg["test"]["dir"]
     bbox_dir = cfg["test"]["bbox_dir"]
@@ -57,38 +61,56 @@ def test_model(cfg: DictConfig):
         models_dir, "03-02-2021 16:14:18", "model.pt"
     )  # PspNet model
     model = torch.load(model_path, map_location="cpu").eval()
-    skipped = 0
+    resized = 0
+    pp = PostProcessOutputWithBbox()
     for i, im in enumerate(images):
         with torch.no_grad():
             print(f"processing img: {i + 1}")
             img_path = os.path.join(image_path, im)
             img, (x1, y1), (x2, y2) = dataset.pre_process_image_with_bb(img_path)
-            valid = check_coordinates((x1, y1), (x2, y2))
-            if not valid:
-                skipped += 1
-                print(f"skipping the image {i + 1} as resizing involved")
-                continue
+            points = np.array((x1, y1, x2, y2))  # Numpy Array of coordinate points
+            simple_case = check_coordinates(cfg, (x1, y1), (x2, y2))
             img = transform(img)
             img = img.unsqueeze(dim=1)  # Add batch dimension
             pred = model(img)
-            # Post-processing predictions with bbox.
-            top_left, bottom_right = dataset.get_crop_coordinates(img_path)
-            new_top_left, new_bottom_right = get_new_bbox_coordinates(
-                top_left, bottom_right, dataset.width, dataset.height
-            )
-            pred = post_process_output_with_bbox(pred, new_top_left, new_bottom_right)
-            pred = thresh(pred)
-            frame = Image.fromarray((pred.numpy() * 255).astype(np.uint8))
-            if not os.path.exists(os.path.join(result_save_path, "pred")):
-                os.mkdir(os.path.join(result_save_path, "pred"))
-            frame.save(os.path.join(result_save_path, "pred", im[:-4] + ".png"))
-            # Saving the bbox coordinates to a txt file.
-            with open(
-                os.path.join(result_save_path, "bbox", im[:-4] + ".txt"), "a+"
-            ) as f:
-                f.write(str(x1) + " " + str(y1) + " " + str(x2) + " " + str(y2))
-                f.close()
-    print(f"Number of skipped images are {skipped}")
+            pred = thresh(pred).numpy().astype(np.uint8)
+            if simple_case:
+                # Post-processing predictions with bbox.
+                top_left, bottom_right = dataset.get_crop_coordinates(img_path)
+                new_top_left, new_bottom_right = get_new_bbox_coordinates(
+                    top_left, bottom_right, dataset.width, dataset.height
+                )
+                pred = pp.post_process_output_with_bbox(
+                    pred, new_top_left, new_bottom_right
+                )
+                frame = Image.fromarray((pred * 255).astype(np.uint8))
+                os.makedirs(os.path.join(result_save_path, "pred"), exist_ok=True)
+                frame.save(os.path.join(result_save_path, "pred", im[:-4] + ".png"))
+                # Saving the bbox coordinates to a txt file.
+                save_path = os.path.join(result_save_path, "bbox", im[:-4] + ".txt")
+                points.tofile(save_path, sep=" ") # numpy save to file
+
+            else:
+                print("Resized case")
+                resized += 1
+                frame = Image.fromarray((pred * 255).astype(np.uint8)).resize(
+                    size=((x2 - x1), (y2 - y1)), resample=Image.BILINEAR
+                )
+                os.makedirs(
+                    os.path.join(result_save_path, "resized", "pred"), exist_ok=True
+                )
+                frame.save(
+                    os.path.join(result_save_path, "resized", "pred", im[:-4] + ".png")
+                )
+                # Saving the bbox coordinates to a txt file.
+                os.makedirs(
+                    os.path.join(result_save_path, "resized", "bbox"), exist_ok=True
+                )
+                save_path = os.path.join(
+                    result_save_path, "resized", "bbox", im[:-4] + ".txt"
+                )
+                points.tofile(save_path, sep=" ") # numpy save to file
+    print(f"Number of resized images are {resized}")
 
 
 if __name__ == "__main__":

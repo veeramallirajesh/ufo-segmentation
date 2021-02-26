@@ -358,32 +358,49 @@ def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tupl
     # y1 = 0 + math.floor(half_y)
     # Pixels that were modified during pre-processing
     # subtracted 20 pixels to make sure areas within bbox are not deactivated
-    new_top_left = ((0 + math.ceil(half_x)), (0 + math.ceil(half_y)))
+    new_top_left = ((0 + math.floor(half_x)), (0 + math.floor(half_y)))
     # Added 20 pixels to make sure areas within bbox are not deactivated
     new_bottom_right = (
-        (w - math.floor(half_x)),
-        (h - math.floor(half_y)),
+        math.ceil(w - half_x),
+        math.ceil(h - half_y),
     )
 
     return new_top_left, new_bottom_right
 
 
-def post_process_output_with_bbox(
-    frame: np.ndarray, top_left: Tuple, bottom_right: Tuple
-):
-    """
-    Function to make all the pixels outside the bounding box region of interest to black--0
-    """
-    dummy_frame = np.zeros_like(frame)
-    dummy_frame[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]] = frame[
-        top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]
-    ]
-    # Second method of doing the same
-    # frame[bottom_right[1]:, :] = 0
-    # frame[:, :top_left[0]] = 0
-    # frame[:top_left[1], :] = 0
-    # frame[:, bottom_right[0]:] = 0
-    return frame
+class PostProcessOutputWithBbox:
+    def __init__(self):
+        self.errors = 0
+
+    def post_process_output_with_bbox(
+        self, frame: np.ndarray, top_left: Tuple, bottom_right: Tuple
+    ) -> np.ndarray:
+        """
+        Function to make all the pixels outside the bounding box region of interest to black--0
+        frame: frame to be post-processed
+        top_left: top-left coordinates of the bbox
+        bottom_right: bottom-right coordinates of the bbox
+        """
+        dummy_frame = np.zeros_like(frame)
+        dummy_frame[
+            top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]
+        ] = frame[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+        self.is_error_case(
+            frame, dummy_frame
+        )  # function to determine if any errors are corrected in RONI region
+        # Second method of doing the same
+        # frame[bottom_right[1]:, :] = 0
+        # frame[:, :top_left[0]] = 0
+        # frame[:top_left[1], :] = 0
+        # frame[:, bottom_right[0]:] = 0
+        return frame
+
+    def is_error_case(self, org: np.ndarray, processed: np.ndarray):
+        if not np.array_equal(org, processed):
+            self.errors += 1
+
+    def __repr__(self):
+        return "Post-processing output masks with bounding box region as ROI"
 
 
 def display_mask_on_image(img: np.ndarray, mask: np.ndarray) -> np.ndarray:

@@ -14,7 +14,7 @@ data:
   classes: "binary" # Binary or Multi-Class Segmentation
   eval_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval" # Path for model evaluation on test data
   rescale: "bbox" # Mode bbox or normal
-  augmentation: 0 # Include data augmentation or not
+  augmentation: 1 # Include data augmentation or not
 #  aug_types: []
   test_split: 0.1 # Percentage of data in the test corpus set
 
@@ -33,12 +33,12 @@ train:
   gpus: 1  # number of gpus to use in training
   workers: 4 # number of worker cores to use
   check_val_every_n_epoch: 1  # how often should validation be checked for early stopping
-  max_epochs: 50  # maximum number of training epochs
+  max_epochs: 30  # maximum number of training epochs
   precision: 32  # bit precision for use in training, either 32 or 16
   saved_model_path: "/home/rveeramalli/ufo-segmentation/src/saved_models" # Path to store trained models
 
 evaluation:
-  threshold: 0.75 # Threshold the sigmoid output of the model
+  threshold: 0.60 # Threshold the sigmoid output of the model
 
 early_stopping:
   metric: "validation/loss"  # metric for early stopping criterion
@@ -49,4 +49,6 @@ early_stopping:
 test: # Unknown test data
   dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/images" # Unknown test images
   bbox_dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/ground-truth" # Bounding box txt files
-  result_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval/new_data"
+  result_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval/new_data/pspnet_out"
+  height: 1024
+  width: 1280

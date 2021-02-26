@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 from runtime.utils import (
     get_new_bbox_coordinates,
-    post_process_output_with_bbox,
+    PostProcessOutputWithBbox,
     visualize,
 )
 import os
@@ -62,7 +62,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
     bbox_dir = cfg["data"]["bbox_dir"]
     indices = split.get_indices("test")
     path = cfg["data"]["eval_path"]
-    acc_detected_objects = []
+    pp = PostProcessOutputWithBbox()
     # Make sure training and augmentation parameters are off
     data_loader.train = 0
 
@@ -101,7 +101,7 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             new_top_left, new_bottom_right = get_new_bbox_coordinates(
                 top_left, bottom_right, width, height
             )
-            new_frame = post_process_output_with_bbox(
+            new_frame = pp.post_process_output_with_bbox(
                 frame, new_top_left, new_bottom_right
             )
             visualize(
@@ -126,7 +126,6 @@ def evaluate_segmentation(cfg, model_trainer, data_loader, split):
             # acc_detected_objects.append(correct / count)
 
         # print(f"\rvalidating {(i / len(indices)) * 100:.2f}%. fpr: {1 - mean(acc_detected_objects)}", end='')
-    print("video created")
-
+    print(f"Total error corrected are {pp.errors}")
     result_vid.close()
     print("\ncreated video. ")

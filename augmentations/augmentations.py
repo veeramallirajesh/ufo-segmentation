@@ -372,3 +372,23 @@ class RandomSized(object):
         )
 
         return self.crop(*self.scale(img, mask))
+
+
+class Transpose(object):
+    """Transpose the input by swapping rows and columns.
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image, mask, bboxes, keypoints
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, p):
+        self.p = p
+
+    def __call__(self, img, mask):
+        assert img.size == mask.size
+        if random.random() < self.p:
+            return F.transpose(img), F.transpose(mask)
+        return img, mask

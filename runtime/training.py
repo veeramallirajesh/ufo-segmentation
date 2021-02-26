@@ -20,10 +20,10 @@ from runtime.utils import iou_loss
 class ModelTrainer:
     def __init__(
         self,
-        model_path="saved_models",
-        use_gpu=False,
-        loss_fn=iou_loss,
-    ):
+        model_path: str = "saved_models",
+        use_gpu: bool = False,
+        loss_fn: object = iou_loss,
+    ) -> None:
         self.use_gpu = use_gpu
         self.model = None
         self.optimizer = None
