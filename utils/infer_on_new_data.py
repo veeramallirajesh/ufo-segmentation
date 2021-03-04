@@ -8,7 +8,8 @@ import os
 import torch
 from torch.nn import Threshold
 import hydra
-from PIL import Image
+from tqdm import tqdm
+from PIL import Image, ImageDraw
 import numpy as np
 import matplotlib.pyplot as plt
 from dataloader.ufs_data import UFSegmentationDataset
@@ -16,9 +17,19 @@ from omegaconf import DictConfig
 from torchvision import transforms
 from typing import Tuple, Optional
 from runtime.utils import get_new_bbox_coordinates, PostProcessOutputWithBbox
+from utils.export_to_torchscript import load_torchscript_model
 
 
-def thresh(pred):
+def thresh(pred: torch.Tensor):
+    """
+    Apply thresholding on the predictions from the model
+
+    Args:
+        pred (torch.Tensor): Predicted tensor from the model (sigmoid output).
+
+    Returns: Tensor after thresholding.
+
+    """
     pred = pred.squeeze()
     pred = torch.where(pred > 0.5, 1, 0)
     return pred
@@ -26,6 +37,17 @@ def thresh(pred):
 
 # Check if the co-ordinates are the result crop enlargement without and resizing
 def check_coordinates(cfg: DictConfig, top: Tuple, bottom: Tuple) -> bool:
+    """
+    Module to check if the image is resized or processed with bounding box.
+
+    Args:
+        cfg (DictConfig): Configuration dictionary
+        top (Tuple): top-left coordinates of the bounding box
+        bottom (Tuple):  bottom-right coordinates of the bounding box
+
+    Returns: Boolean value
+
+    """
     height, width = (
         cfg["test"]["height"],
         cfg["test"]["width"],
@@ -41,6 +63,9 @@ def check_coordinates(cfg: DictConfig, top: Tuple, bottom: Tuple) -> bool:
 def test_model(cfg: DictConfig):
     """
     Function to run the model inference on the unknown test data.
+
+    Args:
+        cfg (DictConfig): Configuration dictionary
     """
     image_path = cfg["test"]["dir"]
     bbox_dir = cfg["test"]["bbox_dir"]
@@ -63,7 +88,7 @@ def test_model(cfg: DictConfig):
     model = torch.load(model_path, map_location="cpu").eval()
     resized = 0
     pp = PostProcessOutputWithBbox()
-    for i, im in enumerate(images):
+    for i, im in enumerate(tqdm(images, colour='green')):
         with torch.no_grad():
             print(f"processing img: {i + 1}")
             img_path = os.path.join(image_path, im)
@@ -84,13 +109,14 @@ def test_model(cfg: DictConfig):
                     pred, new_top_left, new_bottom_right
                 )
                 frame = Image.fromarray((pred * 255).astype(np.uint8))
-                os.makedirs(os.path.join(result_save_path, "pred"), exist_ok=True)
-                frame.save(os.path.join(result_save_path, "pred", im[:-4] + ".png"))
+                os.makedirs(os.path.join(result_save_path, 'simple', "pred"), exist_ok=True)
+                frame.save(os.path.join(result_save_path, 'simple', "pred", im[:-4] + ".png"))
                 # Saving the bbox coordinates to a txt file.
-                save_path = os.path.join(result_save_path, "bbox", im[:-4] + ".txt")
-                points.tofile(save_path, sep=" ") # numpy save to file
+                os.makedirs(os.path.join(result_save_path, 'simple', "bbox"), exist_ok=True)
+                save_path = os.path.join(result_save_path, 'simple', "bbox", im[:-4] + ".txt")
+                points.tofile(save_path, sep=" ")  # numpy save to file
 
-            else:
+            else: # Resized scenario
                 print("Resized case")
                 resized += 1
                 frame = Image.fromarray((pred * 255).astype(np.uint8)).resize(
@@ -109,7 +135,7 @@ def test_model(cfg: DictConfig):
                 save_path = os.path.join(
                     result_save_path, "resized", "bbox", im[:-4] + ".txt"
                 )
-                points.tofile(save_path, sep=" ") # numpy save to file
+                points.tofile(save_path, sep=" ")  # numpy save to file
     print(f"Number of resized images are {resized}")
 
 
