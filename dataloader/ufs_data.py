@@ -209,3 +209,96 @@ class UFSDataModule(pl.LightningDataModule):
 
     def __repr__(self):
         return "Under Water Fish Segmentation Dataset"
+
+
+class UnknownTestData(Dataset):
+    def __init__(
+        self,
+        cfg: Mapping = None,
+        data_root: str = None,
+        bbox_dir: str = None,
+        transform=None,
+    ):  # initial logic happens like transform
+        super(UnknownTestData, self).__init__()
+        self.data_root = data_root
+        self.bbox_dir = bbox_dir
+        self.height = cfg["data"]["height"]
+        self.width = cfg["data"]["width"]
+        self.classes = cfg["data"]["classes"].lower()
+        self.train = cfg["train"]["training"]
+        self.img_files = sorted(glob.glob(os.path.join(self.data_root, "images", "*.jpg")))
+        self.transforms = transform
+
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        img_path = self.img_files[index]
+        # Pre=process images with bbox
+        if self.bbox_dir is not None:
+            img, _, _ = self.pre_process_image_with_bb(img_path)
+        else:
+            img = Image.open(img_path)
+        if self.transforms is not None:
+            return self.transforms(img)
+        else:
+            return img
+
+    def __len__(self):  # return count of sample we have
+        return len(self.img_files)
+
+    def __repr__(self):
+        return "Unknown Test Data"
+
+    # Code for cropping the images based on the bounding box to the model input size
+    def pre_process_image_with_bb(self, img_path: str, mask_path: str = None):
+        # (x1, y1) -- (left, upper), (x2, y2) -- (right, lower) coordinates
+        w, h = Image.open(img_path).size
+        (x1, y1), (x2, y2) = self.get_crop_coordinates(img_path)
+        if (x2 - x1) < self.width:
+            # if (x1 - (round(720-(x2 - x1))/2) < 0):
+            half_x = (self.width - (x2 - x1)) / 2
+            # Make sure the crop region does't go beyond the width of the image
+            x2 = x2 + math.floor(half_x) if (x2 + math.floor(half_x)) < w else w
+            # else:
+            x1 = x1 - math.ceil(half_x) if (x1 - math.ceil(half_x)) > 0 else 0
+        if (y2 - y1) < self.height:
+            # if (y1 - (y2 - y1) < 0):
+            half_y = (self.height - (y2 - y1)) / 2
+            # Make sure the crop region does't go beyond the height of the image
+            y2 = y2 + math.floor(half_y) if (y2 + math.floor(half_y)) < h else h
+            # else:
+            y1 = y1 - math.ceil(half_y) if (y1 - math.ceil(half_y)) > 0 else 0
+        img = Image.open(img_path).crop((x1, y1, x2, y2))
+        if mask_path is None:
+            return (
+                img,
+                (x1, y1),
+                (x2, y2),
+            )  # Return pre-processed image and new bbox co-ordinates
+        else:
+            mask = Image.open(mask_path).convert("L").crop((x1, y1, x2, y2))
+            return img, mask
+
+    def get_crop_coordinates(self, path):
+        bbox_file = os.path.join(
+            self.bbox_dir, os.path.basename(path).split(".")[0] + ".txt"
+        )
+        if not os.path.exists(bbox_file):
+            print(f"Label file does not exist {bbox_file}")
+        with open(Path(bbox_file)) as f:
+            objects = []
+            for line in f:
+                objects.append(line.strip().split())
+                for obj in objects:
+                    # If there are multiple fishes in the image crop the image including all of them
+                    # Checking if the variables are already created
+                    if "x1" and "y1" and "x2" and "y2" in locals():
+                        # Top left coordinates of a bounding box
+                        (x1, y1) = (min(x1, int(obj[1])), min(y1, int(obj[2])))
+                        # Bottom right coordinates of a bounding box
+                        (x2, y2) = (max(x2, int(obj[3])), max(y2, int(obj[4])))
+                    # Single object/ fish in the image
+                    else:
+                        # Top left coordinates of a bounding box
+                        (x1, y1) = (int(obj[1]), int(obj[2]))
+                        # Bottom right coordinates of a bounding box
+                        (x2, y2) = (int(obj[3]), int(obj[4]))
+        return (x1, y1), (x2, y2)

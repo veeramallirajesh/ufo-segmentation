@@ -47,8 +47,14 @@ early_stopping:
   patience: 3  # how many epochs do we wait before stopping
 
 test: # Unknown test data
-  dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/images" # Unknown test images
-  bbox_dir: "/home/rveeramalli/ufo-segmentation/data/cod_18_07_2016/ground-truth" # Bounding box txt files
-  result_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval/new_data/pspnet_out"
+  dir: "/home/rveeramalli/ufo-segmentation/data/cod_17_07_2016/data" # Unknown test images
+  bbox_dir: "/home/rveeramalli/ufo-segmentation/data/cod_17_07_2016/ground-truth" # Bounding box txt files
+  result_path: "/home/rveeramalli/ufo-segmentation/data_v1/eval/cod_17_07_2016/pspnet_out"
   height: 1024
   width: 1280
+
+st_data:
+  model_path: "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/ufo_segmentation/saved_models/traced_pspnet_model.pt"
+  data_dir: "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/data/segmentation/simple_cod_subset"
+  bbox_dir: "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/data/segmentation/simple_cod_subset/ground-truth"
+  save_path: "/Users/kavya/Documents/Master-Thesis/Underwater-Segmentation/data/segmentation/simple_cod_subset/saved_gt"
