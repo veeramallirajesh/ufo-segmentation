@@ -71,8 +71,8 @@ def precision_recall(gt_path, pred_path, is_npy=False):
         precision_scores.append(precision)
         recall_scores.append(recall)
         print(
-            "At Threshold {:.2f}, Precision: {:.4f}, Recall: {:.4f}".format(
-                thresh, precision, recall
+            "At Threshold {:.2f}, Precision: {:.4f}, Recall: {:.4f}, F-Score: {:.4f}".format(
+                thresh, precision, recall, (2 * precision * recall) / (precision + recall)
             )
         )
     return precision_scores, recall_scores, prob_thresh
@@ -124,12 +124,14 @@ def plot_comparitive_pr_curve(model_scores):
         ax.set_ylabel("Precision")
         ax.legend(loc="center left")
     plt.title("PR Curve", loc="center")
+    plt.savefig("pr-curve.svg", format="svg")
     plt.show()
+    print("done")
 
 
 if __name__ == "__main__":
-    gt_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval/test_gt"  # Path to ground-truth
-    pred_path = "/home/rveeramalli/ufo-segmentation/data_v1/eval"  # Path to model output -- unthresholded
+    gt_path = "/home/rveeramalli/ufo-segmentation/data_v2/eval/test_gt"  # Path to ground-truth
+    pred_path = "/home/rveeramalli/ufo-segmentation/data_v2/eval"  # Path to model output -- unthresholded
     for key in model_scores.keys():
         print(f"Generating Precision-Recall Scores for {key} Model Output")
         new_pred_path = os.path.join(

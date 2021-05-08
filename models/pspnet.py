@@ -8,11 +8,6 @@ from segmentation_models_pytorch import PSPNet
 from typing import Mapping
 from runtime.utils import get_value
 
-# model = PSPNet(encoder_name="mobilenet_v2",
-#                in_channels=1,
-#                encoder_weights="imagenet",
-#                activation="identity")
-
 # MobilenetV2 encoder and PSPNET decoder for segmentation
 class PspNetModel:
     """

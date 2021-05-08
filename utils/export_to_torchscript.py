@@ -29,7 +29,7 @@ def export_to_torchscript(model_path: str):
     traced_script_module = torch.jit.trace(model, example)
 
     # Save the TorchScript model
-    traced_script_module.save("../saved_models/traced_pspnet_model.pt")
+    traced_script_module.save("../best_models/traced_pspnet_model.pt")
     print("model saved")
 
 
@@ -59,6 +59,6 @@ def load_torchscript_model(model_path: str) -> torch.jit._script.RecursiveScript
 
 
 if __name__ == "__main__":
-    path = f"../saved_models/pspnet.pt"
-    # export_to_torchscript(path)
-    model = load_torchscript_model(model_path="../saved_models/traced_pspnet_model.pt")
+    path = f"../best_models/pspnet.pt"
+    export_to_torchscript(path)
+    model = load_torchscript_model(model_path="../best_models/traced_pspnet_model.pt")

@@ -212,6 +212,7 @@ class BinaryClassMap(object):
         (torch.Tensor, torch.Tensor)
             Tuple of image and the new segmentation mask.
         """
+        target = torch.where(target!=0, 255, 0) # Added for new batch of masks to make the masks 0's and 255's
         return image, (target // 255)
 
 

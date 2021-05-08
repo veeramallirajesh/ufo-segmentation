@@ -53,7 +53,7 @@ def check_coordinates(cfg: DictConfig, top: Tuple, bottom: Tuple) -> bool:
         cfg["test"]["width"],
     )  # height and width of all the test images.
     if (top[0] and top[1]) != 0 and (bottom[0] < width) and (bottom[1] < height):
-        if ((bottom[0] - top[0]) <= 512) or ((bottom[1] - top[1]) <= 512):
+        if ((bottom[0] - top[0]) == 512) and ((bottom[1] - top[1]) == 512):
             return True
     return False
 
@@ -65,7 +65,7 @@ def test_model(cfg: DictConfig):
     Function to run the model inference on the unknown test data.
 
     Args:
-        cfg (DictConfig): Configuration dictionary
+        cfg (DictConfig): Configuration dictionary from hydras
     """
     image_path = cfg["test"]["dir"]
     bbox_dir = cfg["test"]["bbox_dir"]
@@ -89,10 +89,12 @@ def test_model(cfg: DictConfig):
     resized = 0
     pp = PostProcessOutputWithBbox()
     for i, im in enumerate(tqdm(images, colour='green')):
+        # if im == "17_07_2016_07h11m04s892ms.jpg":
+        #     print("Bug case")
         with torch.no_grad():
             print(f"processing img: {i + 1}")
             img_path = os.path.join(image_path, im)
-            img, (x1, y1), (x2, y2) = dataset.pre_process_image_with_bb(img_path)
+            img, (x1, y1), (x2, y2) = dataset.pre_process_image_with_bb(img_path=img_path)
             points = np.array((x1, y1, x2, y2))  # Numpy Array of coordinate points
             simple_case = check_coordinates(cfg, (x1, y1), (x2, y2))
             img = transform(img)
