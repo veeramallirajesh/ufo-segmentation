@@ -336,15 +336,6 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def discard_features(model):
-    """
-    Function to discard weights of unused layers of the encoder.
-    We are using encoder depth of only 3.
-    """
-    del model.encoder.features[7:]
-    return model
-
-
 def get_new_bbox_coordinates(top_left: Tuple, bottom_right: Tuple, w, h) -> Tuple:
     half_x = (w - (bottom_right[0] - top_left[0])) / 2
     if half_x < 0:
